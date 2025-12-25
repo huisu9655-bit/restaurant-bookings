@@ -1,0 +1,17 @@
+{
+  "name": "restaurant-bookings",
+  "version": "1.0.0",
+  "description": "轻量级门店预约登记与看板服务",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^9.4.1"
+  }
+}

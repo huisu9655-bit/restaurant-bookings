@@ -1,0 +1,12 @@
+node_modules/
+openrouter.config.json
+.DS_Store
+
+# 本地环境/敏感配置（不要提交）
+.env
+app.config.json
+
+# 本地数据（可能包含真实业务数据，不要提交）
+data/app.db
+data/app.db-*
+data/bookings.json

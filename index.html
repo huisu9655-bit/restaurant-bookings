@@ -1,0 +1,2619 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>网红预约与流量后台</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: 'Inter', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+        --bg: #e7eeff;
+        --card: #f9fbff;
+        --border: #cfdcff;
+        --primary: #1348a5;
+        --primary-soft: #d1defd;
+        --text: #0b1f46;
+        --muted: #5c6f93;
+        --accent: #1f64ff;
+        --danger: #dc2626;
+        --nav-bg: #0b2e68;
+        --nav-bg-2: #0a3a82;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at 20% 20%, #d9e5ff 0, #e7eeff 38%, #f5f8ff 100%);
+        color: var(--text);
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .auth-screen {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(145deg, #0b2e68 0%, #184c9f 60%, #1f64ff 100%);
+        padding: 32px 16px;
+      }
+
+      .auth-card {
+        width: min(420px, 100%);
+        background: linear-gradient(160deg, #f9fbff, #eaf1ff);
+        border-radius: 28px;
+        border: 1px solid var(--border);
+        padding: 32px;
+        box-shadow: 0 24px 80px rgba(19, 72, 165, 0.25);
+      }
+
+      .auth-card h1 {
+        margin: 0 0 8px;
+        font-size: 1.8rem;
+      }
+
+      .auth-card p {
+        margin: 0 0 24px;
+        color: var(--muted);
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-2) 60%, #0a2657 100%);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 32px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        color: #e8f1ff;
+      }
+
+      .sidebar h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        color: #f3f6ff;
+      }
+
+      .sidebar .hint {
+        color: #cbd9ff;
+      }
+
+      .menu {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .menu button {
+        border: none;
+        background: transparent;
+        border-radius: 12px;
+        padding: 10px 14px;
+        text-align: left;
+        font-size: 0.95rem;
+        color: #d8e3ff;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+      }
+
+      .menu button.active {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+        transform: translateX(4px);
+      }
+
+      .menu button:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+      }
+
+      .logout-btn {
+        margin-top: auto;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.08);
+        color: #e8f1ff;
+        border-radius: 12px;
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .logout-btn:hover {
+        background: rgba(255, 255, 255, 0.16);
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+
+      main {
+        padding: 32px 40px 48px;
+        overflow-y: auto;
+      }
+
+      .main-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+
+      .main-header h1 {
+        margin: 0;
+        font-size: 1.8rem;
+      }
+
+      .view {
+        display: none;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .view.active {
+        display: flex;
+      }
+
+      .panel {
+        background: linear-gradient(160deg, #ffffff 0%, #f2f6ff 60%, #e7eeff 100%);
+        border-radius: 24px;
+        border: 1px solid var(--border);
+        padding: 24px;
+        box-shadow: 0 10px 40px rgba(15, 35, 82, 0.08);
+      }
+
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .panel-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+
+      .panel-header p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .grid-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+      }
+
+      .stat-card {
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 16px;
+        background: linear-gradient(135deg, #f8fbff, #e4edff);
+      }
+
+      .stat-card h4 {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+
+      .stat-card strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 1.8rem;
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      label {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        background: #fff;
+        text-align: left;
+      }
+
+      input[type='search'] {
+        text-align: left;
+      }
+
+      .input-error {
+        border-color: rgba(220, 38, 38, 0.55) !important;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+      }
+
+      .field-alert {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(220, 38, 38, 0.28);
+        background: rgba(220, 38, 38, 0.08);
+        color: var(--danger);
+        font-size: 0.9rem;
+        line-height: 1.35;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 90px;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .primary-btn {
+        border: none;
+        background: var(--accent);
+        color: #fff;
+        border-radius: 12px;
+        padding: 10px 18px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .ghost-btn {
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text);
+        border-radius: 12px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+
+      .ghost-btn.sm {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+      }
+
+      .icon-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.9);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease;
+        padding: 0;
+      }
+
+      .icon-btn svg {
+        width: 16px;
+        height: 16px;
+        stroke: var(--text);
+      }
+
+      .icon-btn:hover {
+        background: var(--primary-soft);
+        border-color: var(--accent);
+      }
+
+      .danger-btn {
+        border: 1px solid rgba(220, 38, 38, 0.3);
+        color: var(--danger);
+      }
+
+      .card-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 18px;
+        margin-top: 12px;
+      }
+
+      .inf-card {
+        position: relative;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 18px;
+        background: linear-gradient(160deg, #ffffff, #eef3ff);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+        min-height: 260px;
+        box-shadow: 0 12px 32px rgba(13, 41, 96, 0.08);
+        padding-bottom: 64px;
+      }
+
+      .store-card {
+        min-height: auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+      }
+
+      .inf-avatar {
+        width: 260px;
+        height: 128px;
+        border-radius: 16px;
+        background: #fff;
+        flex-shrink: 0;
+        object-fit: contain;
+        object-position: center;
+        display: block;
+      }
+
+      .inf-avatar-large {
+        width: 260px;
+        height: 128px;
+        border-radius: 16px;
+        background: #fff;
+        object-fit: contain;
+        object-position: center;
+        margin: 0;
+        border: 1px solid var(--border);
+        display: block;
+      }
+
+      .inf-actions {
+        position: absolute;
+        bottom: 12px;
+        right: 12px;
+        display: flex;
+        gap: 8px;
+      }
+
+      .store-card .inf-avatar {
+        width: 120px;
+        height: 105px;
+        object-fit: contain;
+        object-position: center;
+      }
+
+      .inf-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+      }
+
+      .panel-header-left {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .inline-search {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        max-width: 320px;
+        min-width: 160px;
+        margin-left: 0;
+      }
+
+      .inline-sort {
+        width: 180px;
+        max-width: 220px;
+      }
+
+      .panel-header-left label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: nowrap;
+        font-size: 1.05rem;
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .inf-filter-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: nowrap;
+        width: 100%;
+        margin-top: 4px;
+      }
+
+      .inf-header-actions {
+        align-self: flex-start;
+        display: flex;
+        gap: 8px;
+      }
+
+      .inf-search-label {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .inf-search-text {
+        white-space: nowrap;
+      }
+
+      .pagination {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 12px 0;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+
+      .pager-left,
+      .pager-pages,
+      .pager-jump {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .pager-pages {
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-left: auto;
+      }
+
+      .pager-nav,
+      .pager-page {
+        height: 34px;
+        min-width: 34px;
+        padding: 0 10px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        background: #eef2f7;
+        color: var(--text);
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        line-height: 1;
+      }
+
+      .pager-nav {
+        background: #fff;
+        border-color: var(--border);
+      }
+
+      .pager-page.active {
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .pager-nav:disabled,
+      .pager-page:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .pager-nav:hover:not(:disabled),
+      .pager-page:hover:not(:disabled) {
+        background: var(--primary-soft);
+        border-color: var(--accent);
+      }
+
+      .pager-page.active:hover:not(:disabled) {
+        background: #1656e6;
+        border-color: #1656e6;
+      }
+
+      .pager-ellipsis {
+        min-width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        user-select: none;
+      }
+
+      .pager-size-select {
+        width: auto;
+        min-width: 110px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: #fff;
+      }
+
+      .pager-jump-input {
+        width: 72px;
+        padding: 6px 10px;
+        border-radius: 10px;
+      }
+
+      @media (max-width: 760px) {
+        .pagination {
+          flex-wrap: wrap;
+          overflow-x: visible;
+        }
+
+        .pager-pages {
+          margin-left: 0;
+        }
+      }
+
+      .inf-card h4 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .inf-card p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+      }
+
+      .table-wrapper {
+        overflow-x: auto;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+      }
+
+      th {
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      .overview-person {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .overview-avatar {
+        width: 52px;
+        height: 26px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid var(--border);
+        background: #fff;
+      }
+
+      .overview-avatar.clickable {
+        cursor: zoom-in;
+      }
+
+      .image-preview-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 16px;
+        z-index: 30;
+      }
+
+      .image-preview-card {
+        width: min(960px, 100%);
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+        overflow: hidden;
+      }
+
+      .image-preview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(160deg, #ffffff 0%, #f2f6ff 60%, #e7eeff 100%);
+      }
+
+      .image-preview-header span {
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.95rem;
+      }
+
+      .image-preview-body {
+        background: #0b1220;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 12px;
+      }
+
+      .image-preview-body img {
+        max-width: 100%;
+        max-height: min(72vh, 720px);
+        object-fit: contain;
+        background: #0b1220;
+      }
+
+      .cell-sub {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .influencer-card .cell-sub {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .influencer-card .cell-sub a {
+        overflow-wrap: anywhere;
+        word-break: break-all;
+      }
+
+      .filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .overview-traffic-filters {
+        display: grid;
+        grid-template-columns: 180px minmax(220px, 1fr);
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .overview-traffic-filters .inline-search {
+        width: 100%;
+        max-width: 360px;
+      }
+
+      .overview-traffic-filters select {
+        width: 180px;
+        max-width: 240px;
+      }
+
+      @media (max-width: 560px) {
+        .overview-traffic-filters {
+          grid-template-columns: 1fr;
+        }
+
+        .overview-traffic-filters select {
+          width: 100%;
+          max-width: none;
+        }
+
+        .overview-traffic-filters .inline-search {
+          max-width: none;
+        }
+      }
+
+      .date-large {
+        padding: 8px;
+        font-size: 1rem;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+      }
+
+      .tag.schedule {
+        background: #dbeafe;
+        color: var(--accent);
+      }
+
+      .tag.walkin {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.35);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 16px;
+        z-index: 20;
+      }
+
+      .modal-card {
+        width: min(500px, 100%);
+        background: #fff;
+        border-radius: 24px;
+        padding: 24px;
+        border: 1px solid var(--border);
+        box-shadow: 0 30px 60px rgba(15, 23, 42, 0.2);
+      }
+
+      .modal-card header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--text);
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 14px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (max-width: 960px) {
+        .app-shell {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loginScreen" class="auth-screen hidden">
+      <div class="auth-card">
+        <h1>欢迎登录</h1>
+        <p>使用运营账号进入网红预约与流量后台</p>
+        <form id="loginForm">
+          <div>
+            <label for="loginUsername">账号</label>
+            <input id="loginUsername" name="username" placeholder="admin" required />
+          </div>
+          <div>
+            <label for="loginPassword">密码</label>
+            <input id="loginPassword" name="password" type="password" required />
+          </div>
+          <button class="primary-btn" type="submit">登录</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="appShell" class="app-shell hidden">
+      <aside class="sidebar">
+        <div>
+          <h2>餐厅推广预约投放中心</h2>
+          <p id="sidebarUser" class="hint"></p>
+        </div>
+        <nav class="menu">
+          <button data-view="overview" class="active">投放总览</button>
+          <button data-view="bookings">预约与流量</button>
+          <button data-view="influencers">网红管理</button>
+          <button data-view="stores">店铺管理</button>
+          <button data-view="users">用户管理</button>
+        </nav>
+        <button class="logout-btn" id="logoutBtn">退出登录</button>
+      </aside>
+      <main>
+        <header class="main-header">
+          <div>
+            <h1 id="pageTitle">网红预约与流量后台</h1>
+            <p id="welcomeHint">加载中...</p>
+          </div>
+        </header>
+
+        <section class="view active" id="overviewView">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>近7天预约情况明细</h3>
+                <p>查看未来7天的预约到访安排</p>
+              </div>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>达人</th>
+                    <th>联系方式</th>
+                    <th>门店</th>
+                    <th>到访时间</th>
+                  </tr>
+                </thead>
+                <tbody id="overviewTodayBookings"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>最新流量列表</h3>
+                <p>按观看量排序</p>
+                <div class="overview-traffic-filters">
+                  <select id="overviewTrafficStoreFilter">
+                    <option value="all">全部门店</option>
+                  </select>
+                  <div class="inline-search">
+                    <input type="search" id="overviewTrafficKeyword" placeholder="搜索达人昵称" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>达人</th>
+                    <th>门店</th>
+                    <th>视频链接</th>
+                    <th>视频发布时间</th>
+                    <th>观看</th>
+                    <th>点赞</th>
+                    <th>评论</th>
+                    <th>最新更新时间</th>
+                  </tr>
+                </thead>
+                <tbody id="overviewTraffic"></tbody>
+              </table>
+              <div class="pagination" id="overviewTrafficPager"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="influencersView">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-header-left">
+                <h3>达人档案</h3>
+                <p class="hint" style="margin: 0 0 4px;">支持按达人昵称 / 账号搜索</p>
+                <div class="inf-filter-row">
+                  <div class="inline-search">
+                    <input type="search" id="influencerSearch" placeholder="输入达人昵称 / 账号" />
+                  </div>
+                </div>
+              </div>
+              <div class="inf-header-actions">
+                <button class="primary-btn" id="openInfModal">新增达人</button>
+                <button class="ghost-btn" id="openInfImport">导入达人</button>
+              </div>
+            </div>
+            <div class="card-list" id="influencerCards"></div>
+            <div class="pagination" id="infPagination"></div>
+          </div>
+        </section>
+
+        <section class="view" id="bookingsView">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>预约与流量列表</h3>
+              </div>
+              <button class="primary-btn" id="openBookingModal">新增预约</button>
+            </div>
+            <p class="hint" style="margin: 0 0 8px;">支持按达人昵称、门店或到访日期筛选</p>
+            <div class="filters">
+              <input id="bookingKeyword" placeholder="达人昵称" />
+              <select id="bookingStoreFilter"></select>
+              <input type="date" id="bookingDate" class="date-large" />
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>达人</th>
+                    <th>门店</th>
+                    <th>类型</th>
+                    <th>到访</th>
+                    <th>服务内容</th>
+                    <th>费用(万)</th>
+                    <th>流量</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="bookingTable"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="bookingPagination"></div>
+          </div>
+        </section>
+
+        <section class="view" id="usersView">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>账号列表</h3>
+              </div>
+              <button class="primary-btn" id="openUserModal">新增账号</button>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>账号</th>
+                    <th>角色</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="userTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="storesView">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h3>门店列表</h3>
+                <p>仅保留名称、地址、图片</p>
+              </div>
+              <button class="primary-btn" id="openStoreModal">新增门店</button>
+            </div>
+            <div class="card-list" id="storeCards"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="imagePreviewBackdrop" class="image-preview-backdrop hidden" aria-hidden="true">
+      <div class="image-preview-card" role="dialog" aria-modal="true">
+        <div class="image-preview-header">
+          <span id="imagePreviewTitle">头像预览</span>
+          <button class="ghost-btn" type="button" id="closeImagePreview">关闭</button>
+        </div>
+        <div class="image-preview-body">
+          <img id="imagePreviewImg" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div id="modalBackdrop" class="modal-backdrop hidden">
+      <div class="modal-card hidden" id="influencerModal">
+        <header>
+          <h3 id="infModalTitle">新增达人</h3>
+          <button class="ghost-btn" data-close>关闭</button>
+        </header>
+        <form id="influencerForm">
+          <input type="hidden" id="infId" />
+          <input type="hidden" id="infAvatarData" name="avatarData" />
+          <div class="form-row">
+            <div>
+              <label for="infName">达人昵称 *</label>
+              <input id="infName" name="displayName" required />
+            </div>
+            <div>
+              <label for="infHandle">账号</label>
+              <input id="infHandle" name="handle" placeholder="@account" />
+            </div>
+          </div>
+          <div class="field-alert hidden" id="infDuplicateAlert" role="alert"></div>
+          <div>
+            <label for="infProfileLink">达人ID（主页链接）</label>
+            <input id="infProfileLink" name="profileLink" placeholder="https://www.tiktok.com/@xxx" />
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="infPhoto">照片</label>
+              <input type="file" id="infPhoto" accept="image/*" />
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <div class="hint">支持 jpg/png，自动转为数据存储</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="infContactMethod">联系渠道</label>
+              <input id="infContactMethod" name="contactMethod" placeholder="Zalo / WhatsApp" />
+            </div>
+            <div>
+              <label for="infContactInfo">联系方式</label>
+              <input id="infContactInfo" name="contactInfo" />
+            </div>
+          </div>
+          <div>
+            <label for="infNotes">备注</label>
+            <textarea id="infNotes" name="notes"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="primary-btn" id="infSubmit">保存达人</button>
+            <button type="button" class="ghost-btn" data-close>取消</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-card hidden" id="bookingModal">
+        <header>
+          <h3 id="bookingModalTitle">新增预约</h3>
+          <button class="ghost-btn" data-close>关闭</button>
+        </header>
+        <form id="bookingForm">
+          <div class="form-row">
+            <div>
+              <label for="modalStore">门店 *</label>
+              <select id="modalStore" name="storeId" required></select>
+            </div>
+            <div>
+              <label for="modalInfluencerSearch">达人 *</label>
+              <input
+                id="modalInfluencerSearch"
+                name="influencerSearch"
+                list="modalInfluencerList"
+                placeholder="输入达人昵称或账号，例如：ng.hamii / @ng.hamii"
+                autocomplete="off"
+                required
+              />
+              <input type="hidden" id="modalInfluencer" name="influencerId" />
+              <datalist id="modalInfluencerList"></datalist>
+              <div class="field-alert hidden" id="modalInfluencerAlert" role="alert"></div>
+              <div class="hint" style="margin-top: 4px;">选择下拉匹配项后会自动填充达人</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="modalSource">来源</label>
+              <select id="modalSource" name="sourceType">
+                <option value="预约">预约</option>
+                <option value="自来">自来</option>
+              </select>
+            </div>
+            <div>
+              <label for="modalVisitDate">到访日期 *</label>
+              <input type="date" id="modalVisitDate" name="visitDate" required />
+            </div>
+            <div>
+              <label for="modalVisitWindow">到访时段</label>
+              <input id="modalVisitWindow" name="visitWindow" />
+            </div>
+          </div>
+          <div>
+            <label for="modalService">服务内容 </label>
+            <textarea id="modalService" name="serviceDetail"></textarea>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="modalRights">备注/脚本要求</label>
+              <input id="modalRights" name="videoRights" />
+            </div>
+            <div>
+              <label for="modalBudget">费用 (万 VND)</label>
+              <input type="number" id="modalBudget" name="budgetMillionVND" min="0" step="5" />
+            </div>
+            <div>
+              <label for="modalPostDate">预计发布时间</label>
+              <input type="date" id="modalPostDate" name="postDate" />
+            </div>
+          </div>
+          <div>
+            <label for="modalNotes">备注</label>
+            <textarea id="modalNotes" name="notes"></textarea>
+          </div>
+          <button class="primary-btn" type="submit" id="bookingSubmit">提交预约</button>
+        </form>
+      </div>
+
+      <div class="modal-card hidden" id="trafficModal">
+        <header>
+          <h3>登记流量</h3>
+          <button class="ghost-btn" data-close>关闭</button>
+        </header>
+        <form id="trafficForm">
+          <input type="hidden" name="bookingId" id="trafficBookingId" />
+          <input type="hidden" name="trafficId" id="trafficId" />
+          <div class="form-row">
+            <div>
+              <label for="trafficPostDate">视频发布时间</label>
+              <input type="date" id="trafficPostDate" name="postDate" />
+            </div>
+            <div>
+              <label for="trafficVideo">视频链接 *</label>
+              <input id="trafficVideo" name="videoLink" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="trafficViews">观看</label>
+              <input type="number" id="trafficViews" name="views" min="0" />
+            </div>
+            <div>
+              <label for="trafficLikes">点赞</label>
+              <input type="number" id="trafficLikes" name="likes" min="0" />
+            </div>
+            <div>
+              <label for="trafficComments">评论</label>
+              <input type="number" id="trafficComments" name="comments" min="0" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="trafficShares">分享</label>
+              <input type="number" id="trafficShares" name="shares" min="0" />
+            </div>
+          </div>
+          <div>
+            <label for="trafficNote">备注</label>
+            <textarea id="trafficNote" name="note"></textarea>
+          </div>
+          <button class="primary-btn" type="submit">提交流量</button>
+        </form>
+        <button class="ghost-btn" id="autoFetch">尝试自动抓取</button>
+      </div>
+      <div class="modal-card hidden" id="infImportModal">
+        <header>
+          <h3>导入达人</h3>
+          <button class="ghost-btn" data-close>关闭</button>
+        </header>
+        <p class="hint" style="margin: 0 0 12px;">上传 CSV（不含照片），字段顺序：达人昵称,账号,联系渠道,联系方式,备注</p>
+        <form id="infImportForm">
+          <div class="form-row">
+            <div>
+              <label for="infImportFile">选择 CSV</label>
+              <input type="file" id="infImportFile" accept=".csv,text/csv" required />
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <a id="infTemplateLink" class="hint" download="influencers_template.csv">下载模板</a>
+            </div>
+          </div>
+          <button class="primary-btn" type="submit">开始导入</button>
+        </form>
+      </div>
+      <div class="modal-card hidden" id="storeModal">
+        <header>
+          <h3 id="storeModalTitle">新增门店</h3>
+          <button class="ghost-btn" data-close>关闭</button>
+        </header>
+        <form id="storeForm">
+          <input type="hidden" id="storeImageData" name="imageData" />
+          <div>
+            <label for="storeName">门店名称 *</label>
+            <input id="storeName" name="name" required />
+          </div>
+          <div>
+            <label for="storeAddress">地址</label>
+            <input id="storeAddress" name="address" />
+          </div>
+          <div class="form-row">
+            <div>
+              <label for="storePhoto">门店图片</label>
+              <input type="file" id="storePhoto" accept="image/*" />
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <div class="hint">图片将转为 base64 存储，用于卡片展示</div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="primary-btn" type="submit" id="storeSubmit">保存门店</button>
+            <button class="ghost-btn" type="button" id="storeReset" data-close>取消</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-card hidden" id="userModal">
+        <header>
+          <h3>新增账号</h3>
+          <button class="ghost-btn" data-close>关闭</button>
+        </header>
+        <form id="userForm">
+          <div class="form-row">
+            <div>
+              <label for="userName">账号 *</label>
+              <input id="userName" name="username" required />
+            </div>
+            <div>
+              <label for="userPassword">密码 *</label>
+              <input id="userPassword" name="password" type="password" required />
+            </div>
+          </div>
+          <button class="primary-btn" type="submit">创建账号</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const savedUser = (() => {
+        try {
+          return JSON.parse(localStorage.getItem('booking_user') || 'null');
+        } catch (error) {
+          return null;
+        }
+      })();
+      const state = {
+        token: localStorage.getItem('booking_token') || '',
+        user: savedUser,
+        stores: [],
+        influencers: [],
+        bookings: [],
+        trafficLogs: [],
+        overview: null,
+        overviewTrafficPage: 1,
+        overviewTrafficPageSize: 10,
+        overviewTrafficFilters: {
+          store: 'all',
+          q: ''
+        },
+        users: [],
+        editingStoreId: '',
+        editingInfluencerId: '',
+        editingBookingId: '',
+        infPage: 1,
+        infRowsPerPage: 3,
+        bookingPage: 1,
+        bookingPageSize: 10,
+        currentView: 'overview',
+        _justCreatedInfluencerId: '',
+        filters: {
+          q: '',
+          store: '',
+          date: ''
+        }
+      };
+
+      function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => toast.classList.remove('show'), 2400);
+      }
+
+      function setToken(token) {
+        state.token = token;
+        if (token) {
+          localStorage.setItem('booking_token', token);
+        } else {
+          localStorage.removeItem('booking_token');
+          localStorage.removeItem('booking_user');
+          state.user = null;
+          document.getElementById('sidebarUser').textContent = '';
+        }
+      }
+
+      async function apiFetch(url, options = {}) {
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+        if (state.token) {
+          headers['Authorization'] = `Bearer ${state.token}`;
+        }
+        const res = await fetch(url, Object.assign({}, options, { headers }));
+        if (res.status === 401) {
+          setToken('');
+          showLogin();
+          throw new Error('请重新登录');
+        }
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || '请求失败');
+        }
+        return res.json();
+      }
+
+      function showLogin() {
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appShell').classList.add('hidden');
+      }
+
+      function showApp() {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appShell').classList.remove('hidden');
+      }
+
+      function switchView(viewId) {
+        state.currentView = viewId;
+        document.querySelectorAll('.menu button').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.view === viewId);
+        });
+        document.querySelectorAll('.view').forEach(section => {
+          section.classList.toggle('active', section.id === `${viewId}View`);
+        });
+        updatePageTitle();
+        if (viewId === 'influencers') {
+          renderInfluencers();
+        }
+      }
+
+      function getInfluencerPageSize() {
+        const container = document.getElementById('influencerCards');
+        const rows = Number(state.infRowsPerPage || 3);
+        if (!container || !container.isConnected) return Math.max(1, rows * 6);
+        const template = getComputedStyle(container).gridTemplateColumns || '';
+        if (!template || template === 'none') return Math.max(1, rows * 6);
+        const columns = template.split(' ').filter(Boolean).length;
+        return Math.max(1, columns * rows);
+      }
+
+      function clampNumber(value, min, max) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return min;
+        return Math.min(max, Math.max(min, num));
+      }
+
+      function buildPagerTokens(currentPage, totalPages) {
+        if (totalPages <= 7) {
+          return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        if (currentPage <= 4) {
+          return [1, 2, 3, 4, 5, 6, '…', totalPages];
+        }
+        if (currentPage >= totalPages - 3) {
+          return [1, '…', totalPages - 5, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        }
+        return [1, '…', currentPage - 2, currentPage - 1, currentPage, currentPage + 1, currentPage + 2, '…', totalPages];
+      }
+
+      function renderPager(containerId, config) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const totalItems = Math.max(0, Number(config.totalItems) || 0);
+        const pageSize = Math.max(1, Number(config.pageSize) || 10);
+        const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+        const currentPage = clampNumber(config.page, 1, totalPages);
+
+        const pageSizeSelect = config.pageSizeSelect;
+        const sizeHtml = pageSizeSelect
+          ? `
+              <select class="pager-size-select" data-page-size>
+                ${(pageSizeSelect.options || [])
+                  .map(
+                    opt =>
+                      `<option value="${String(opt.value)}" ${String(opt.value) === String(pageSizeSelect.value) ? 'selected' : ''}>${opt.label}</option>`
+                  )
+                  .join('')}
+              </select>
+            `
+          : '';
+
+        const tokens = buildPagerTokens(currentPage, totalPages);
+        const pagesHtml = tokens
+          .map(token => {
+            if (token === '…') return `<span class="pager-ellipsis">…</span>`;
+            const pageNum = Number(token);
+            const active = pageNum === currentPage ? 'active' : '';
+            return `<button class="pager-page ${active}" type="button" data-page-num="${pageNum}">${pageNum}</button>`;
+          })
+          .join('');
+
+        container.innerHTML = `
+          <div class="pager-left">
+            <span class="cell-sub">共 ${totalItems} 条</span>
+            ${sizeHtml}
+          </div>
+          <div class="pager-pages">
+            <button class="pager-nav" type="button" data-page-nav="prev" ${currentPage === 1 ? 'disabled' : ''}>‹</button>
+            ${pagesHtml}
+            <button class="pager-nav" type="button" data-page-nav="next" ${currentPage === totalPages ? 'disabled' : ''}>›</button>
+          </div>
+          <div class="pager-jump">
+            <span class="cell-sub">前往</span>
+            <input class="pager-jump-input" type="number" min="1" max="${totalPages}" value="${currentPage}" data-page-jump />
+            <span class="cell-sub">页</span>
+          </div>
+        `;
+
+        const onPageChange = typeof config.onPageChange === 'function' ? config.onPageChange : null;
+        const onPageSizeChange = pageSizeSelect && typeof pageSizeSelect.onChange === 'function' ? pageSizeSelect.onChange : null;
+
+        container.querySelectorAll('[data-page-num]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (!onPageChange) return;
+            const nextPage = clampNumber(btn.getAttribute('data-page-num'), 1, totalPages);
+            if (nextPage === currentPage) return;
+            onPageChange(nextPage, { totalPages, pageSize, totalItems });
+          });
+        });
+        container.querySelectorAll('[data-page-nav]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (!onPageChange) return;
+            const dir = btn.getAttribute('data-page-nav');
+            if (dir === 'prev' && currentPage > 1) return onPageChange(currentPage - 1, { totalPages, pageSize, totalItems });
+            if (dir === 'next' && currentPage < totalPages) return onPageChange(currentPage + 1, { totalPages, pageSize, totalItems });
+          });
+        });
+        const jumpInput = container.querySelector('[data-page-jump]');
+        if (jumpInput && onPageChange) {
+          const go = () => {
+            const nextPage = clampNumber(jumpInput.value, 1, totalPages);
+            if (nextPage === currentPage) return;
+            onPageChange(nextPage, { totalPages, pageSize, totalItems });
+          };
+          jumpInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              go();
+            }
+          });
+          jumpInput.addEventListener('blur', go);
+        }
+        const sizeSelect = container.querySelector('[data-page-size]');
+        if (sizeSelect && onPageSizeChange) {
+          sizeSelect.addEventListener('change', () => {
+            const nextValue = sizeSelect.value;
+            onPageSizeChange(nextValue, { totalPages, pageSize, totalItems });
+          });
+        }
+      }
+
+      function dataUrlFromFile(file) {
+        return new Promise((resolve, reject) => {
+          if (!file) return resolve('');
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function renderOverview() {
+        const now = new Date();
+        const today = [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, '0'),
+          String(now.getDate()).padStart(2, '0')
+        ].join('-');
+        const end = new Date(now);
+        end.setDate(end.getDate() + 6);
+        const endDate = [
+          end.getFullYear(),
+          String(end.getMonth() + 1).padStart(2, '0'),
+          String(end.getDate()).padStart(2, '0')
+        ].join('-');
+        const upcomingBookings = state.bookings
+          .filter(item => item.visitDate && item.visitDate >= today && item.visitDate <= endDate)
+          .sort((a, b) => {
+            if (a.visitDate !== b.visitDate) return String(a.visitDate).localeCompare(String(b.visitDate));
+            return String(a.visitWindow || '').localeCompare(String(b.visitWindow || ''));
+          });
+        const tbody = document.getElementById('overviewTodayBookings');
+        if (!upcomingBookings.length) {
+          tbody.innerHTML = `<tr><td colspan="4" class="hint">近7天暂无预约</td></tr>`;
+        } else {
+          tbody.innerHTML = upcomingBookings
+            .map(booking => {
+              const influencer = state.influencers.find(item => item.id === booking.influencerId);
+              const avatar = influencer?.avatarData || 'https://via.placeholder.com/40x40?text=+';
+              const displayName = influencer?.displayName || booking.creatorName || '未命名';
+              const handle = influencer?.handle || booking.handle || '';
+              const contactMethod = booking.contactMethod || influencer?.contactMethod || '';
+              const contactInfo = booking.contactInfo || influencer?.contactInfo || '';
+              const contact = contactMethod || contactInfo ? [contactMethod, contactInfo].filter(Boolean).join(' ') : '—';
+              const visitTime = [booking.visitDate, booking.visitWindow].filter(Boolean).join(' ') || '—';
+              return `
+              <tr>
+                <td>
+                  <div class="overview-person">
+                    <img class="overview-avatar clickable" src="${avatar}" alt="${displayName}" data-preview-src="${avatar}" data-preview-alt="${displayName}" />
+                    <div>
+                      <div>${displayName}</div>
+                      <div class="cell-sub">${handle || '—'}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>${contact}</td>
+                <td>${booking.storeName || '—'}</td>
+                <td>${visitTime}</td>
+              </tr>
+            `;
+            })
+            .join('');
+        }
+        if (!state.overview) return;
+        const storeSelect = document.getElementById('overviewTrafficStoreFilter');
+        const keywordInput = document.getElementById('overviewTrafficKeyword');
+        if (storeSelect) {
+          const selected = state.overviewTrafficFilters?.store || 'all';
+          const storeNames = [...new Set((state.stores || []).map(item => item.name).filter(Boolean))];
+          storeSelect.innerHTML = ['<option value="all">全部门店</option>']
+            .concat(storeNames.map(name => `<option value="${name}">${name}</option>`))
+            .join('');
+          storeSelect.value = selected;
+        }
+        if (keywordInput) {
+          const q = state.overviewTrafficFilters?.q || '';
+          if (keywordInput.value !== q) keywordInput.value = q;
+        }
+
+        const trafficStore = String(state.overviewTrafficFilters?.store || 'all');
+        const trafficKeyword = String(state.overviewTrafficFilters?.q || '').trim().toLowerCase();
+        const trafficList = [...(state.overview.latestTraffic || [])].filter(log => {
+          if (trafficStore && trafficStore !== 'all' && String(log.storeName || '') !== trafficStore) {
+            return false;
+          }
+          if (trafficKeyword) {
+            const name = String(log.influencerName || '').toLowerCase();
+            if (!name.includes(trafficKeyword)) return false;
+          }
+          return true;
+        });
+        const totalPages = Math.max(1, Math.ceil(trafficList.length / state.overviewTrafficPageSize));
+        if (state.overviewTrafficPage > totalPages) {
+          state.overviewTrafficPage = totalPages;
+        }
+        const start = (state.overviewTrafficPage - 1) * state.overviewTrafficPageSize;
+        const pageList = trafficList.slice(start, start + state.overviewTrafficPageSize);
+        document.getElementById('overviewTraffic').innerHTML = pageList
+          .map(
+            log => `
+          <tr>
+            <td>${log.influencerName}</td>
+            <td>${log.storeName || '—'}</td>
+            <td>${log.videoLink ? `<a href="${log.videoLink}" target="_blank" rel="noopener">查看</a>` : '—'}</td>
+            <td>${log.postDate || '—'}</td>
+            <td>${log.metrics?.views || 0}</td>
+            <td>${log.metrics?.likes || 0}</td>
+            <td>${log.metrics?.comments || 0}</td>
+            <td>${new Date(log.capturedAt).toLocaleString()}</td>
+          </tr>
+        `
+          )
+          .join('');
+        renderPager('overviewTrafficPager', {
+          totalItems: trafficList.length,
+          page: state.overviewTrafficPage,
+          pageSize: state.overviewTrafficPageSize,
+          pageSizeSelect: {
+            value: String(state.overviewTrafficPageSize),
+            options: [10, 20, 50].map(n => ({ value: String(n), label: `${n}条/页` })),
+            onChange: nextValue => {
+              state.overviewTrafficPageSize = Math.max(1, Number(nextValue) || 10);
+              state.overviewTrafficPage = 1;
+              renderOverview();
+            }
+          },
+          onPageChange: nextPage => {
+            state.overviewTrafficPage = nextPage;
+            renderOverview();
+          }
+        });
+      }
+
+      function updatePageTitle() {
+        const map = {
+          overview: '投放总览',
+          influencers: '网红管理',
+          bookings: '预约与流量',
+          users: '用户管理',
+          stores: '店铺管理'
+        };
+        document.getElementById('pageTitle').textContent = map[state.currentView] || '网红预约与流量后台';
+      }
+
+      function renderInfluencers() {
+        const keyword = document.getElementById('influencerSearch').value.trim().toLowerCase();
+        const list = keyword
+          ? state.influencers.filter(item =>
+              [item.displayName, item.handle].some(text => (text || '').toLowerCase().includes(keyword))
+            )
+          : state.influencers;
+        let sortedList = [...list];
+        if (state._justCreatedInfluencerId) {
+          const idx = sortedList.findIndex(item => item.id === state._justCreatedInfluencerId);
+          if (idx >= 0) {
+            const [created] = sortedList.splice(idx, 1);
+            sortedList.unshift(created);
+            state.infPage = 1;
+          }
+          state._justCreatedInfluencerId = '';
+        }
+        const container = document.getElementById('influencerCards');
+        const pager = document.getElementById('infPagination');
+        if (!sortedList.length) {
+          container.innerHTML = '<div class="hint">暂无数据</div>';
+          pager.innerHTML = '';
+          return;
+        }
+        const pageSize = getInfluencerPageSize();
+        const totalPages = Math.max(1, Math.ceil(sortedList.length / pageSize));
+        if (state.infPage > totalPages) {
+          state.infPage = totalPages;
+        }
+        const start = (state.infPage - 1) * pageSize;
+        const pageList = sortedList.slice(start, start + pageSize);
+        container.innerHTML = pageList
+          .map(
+            inf => `
+          <article class="inf-card influencer-card">
+            <div class="inf-actions">
+              <button class="icon-btn" data-edit-inf="${inf.id}" title="编辑">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                  <path d="M13.5 6.5l4 4L7 21H3v-4l10.5-10.5z"></path>
+                  <path d="M12 7l3-3 4 4-3 3"></path>
+                </svg>
+              </button>
+              <button class="icon-btn danger-btn" data-delete-inf="${inf.id}" title="删除">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                  <path d="M6 7h12"></path>
+                  <path d="M10 11v6"></path>
+                  <path d="M14 11v6"></path>
+                  <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"></path>
+                  <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+            <img class="inf-avatar inf-avatar-large" src="${inf.avatarData || 'https://via.placeholder.com/96x96?text=+'}" alt="avatar" />
+            <div class="inf-meta">
+              <h4>${inf.displayName}</h4>
+              <p class="cell-sub">${inf.handle || '—'}</p>
+              <p class="cell-sub">
+                达人ID：
+                ${
+                  inf.profileLink
+                    ? `<a href="${inf.profileLink}" target="_blank" rel="noreferrer">${inf.profileLink}</a>`
+                    : '—'
+                }
+              </p>
+              <p class="cell-sub">${[inf.contactMethod, inf.contactInfo].filter(Boolean).join(' ') || '联系方式未填写'}</p>
+              ${inf.notes ? `<p class="cell-sub">${inf.notes}</p>` : ''}
+            </div>
+          </article>
+        `
+          )
+          .join('');
+        container.querySelectorAll('[data-edit-inf]').forEach(btn => {
+          btn.addEventListener('click', () => startEditInfluencer(btn.dataset.editInf));
+        });
+        container.querySelectorAll('[data-delete-inf]').forEach(btn => {
+          btn.addEventListener('click', () => deleteInfluencer(btn.dataset.deleteInf));
+        });
+        const computedColumns = (() => {
+          const template = getComputedStyle(container).gridTemplateColumns || '';
+          if (!template || template === 'none') return 6;
+          return template.split(' ').filter(Boolean).length || 6;
+        })();
+        const rowCandidates = [2, 3, 4, 5, 6];
+        const currentRows = Math.max(1, Number(state.infRowsPerPage || 3));
+        const rows = Array.from(new Set([currentRows, ...rowCandidates])).sort((a, b) => a - b);
+        renderPager('infPagination', {
+          totalItems: sortedList.length,
+          page: state.infPage,
+          pageSize,
+          pageSizeSelect: {
+            value: String(currentRows),
+            options: rows.map(r => ({ value: String(r), label: `${computedColumns * r}条/页` })),
+            onChange: nextValue => {
+              state.infRowsPerPage = Math.max(1, Number(nextValue) || 3);
+              state.infPage = 1;
+              renderInfluencers();
+            }
+          },
+          onPageChange: nextPage => {
+            state.infPage = nextPage;
+            renderInfluencers();
+          }
+        });
+      }
+
+      function renderStoreCards() {
+        const container = document.getElementById('storeCards');
+        if (!state.stores.length) {
+          container.innerHTML = '<div class="hint">暂无门店</div>';
+          return;
+        }
+        container.innerHTML = state.stores
+          .map(
+            store => `
+          <article class="inf-card store-card">
+            <div class="inf-actions">
+              <button class="icon-btn" data-edit-store="${store.id}" title="编辑">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                  <path d="M13.5 6.5l4 4L7 21H3v-4l10.5-10.5z"></path>
+                  <path d="M12 7l3-3 4 4-3 3"></path>
+                </svg>
+              </button>
+              <button class="icon-btn danger-btn" data-delete-store="${store.id}" title="删除">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                  <path d="M6 7h12"></path>
+                  <path d="M10 11v6"></path>
+                  <path d="M14 11v6"></path>
+                  <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"></path>
+                  <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+            <img class="inf-avatar" src="${store.imageData || 'https://via.placeholder.com/56x56?text=Store'}" alt="store" />
+            <div>
+              <h4>${store.name}</h4>
+              <p>${store.address || '地址待补充'}</p>
+            </div>
+          </article>
+        `
+          )
+          .join('');
+        container.querySelectorAll('[data-edit-store]').forEach(btn => {
+          btn.addEventListener('click', () => startEditStore(btn.dataset.editStore));
+        });
+        container.querySelectorAll('[data-delete-store]').forEach(btn => {
+          btn.addEventListener('click', () => deleteStore(btn.dataset.deleteStore));
+        });
+      }
+
+      function renderBookingTable() {
+        const tbody = document.getElementById('bookingTable');
+        if (!state.bookings.length) {
+          tbody.innerHTML = '<tr><td colspan="8" class="hint">暂无预约</td></tr>';
+          return;
+        }
+        const filtered = state.bookings.filter(record => {
+          const keyword = state.filters.q.toLowerCase();
+          if (keyword) {
+            const blob = [record.creatorName, record.storeName, record.visitDate]
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase();
+            if (!blob.includes(keyword)) return false;
+          }
+          if (state.filters.store && state.filters.store !== 'all' && record.storeId !== state.filters.store) {
+            return false;
+          }
+          if (state.filters.date && record.visitDate !== state.filters.date) {
+            return false;
+          }
+          return true;
+        });
+        const totalPages = Math.max(1, Math.ceil(filtered.length / state.bookingPageSize));
+        if (state.bookingPage > totalPages) {
+          state.bookingPage = totalPages;
+        }
+        const start = (state.bookingPage - 1) * state.bookingPageSize;
+        const pageList = filtered.slice(start, start + state.bookingPageSize);
+        tbody.innerHTML = pageList
+          .map(record => {
+            const tag = record.sourceType === '自来' ? '<span class="tag walkin">自来</span>' : '<span class="tag schedule">预约</span>';
+            const latest = state.trafficLogs.find(log => log.bookingId === record.id);
+            const trafficText = latest
+              ? `${latest.metrics?.views || 0} 观看 · ${new Date(latest.capturedAt).toLocaleDateString()}`
+                : '未登记';
+              return `
+            <tr>
+              <td>${record.creatorName}</td>
+              <td>${record.storeName}</td>
+              <td>${tag}</td>
+              <td>${record.visitDate || '待定'} ${record.visitWindow || ''}</td>
+              <td>${record.serviceDetail || record.videoRights || '—'}</td>
+              <td>${record.budgetMillionVND || 0}</td>
+              <td>${trafficText}</td>
+              <td>
+                <button class="ghost-btn" data-edit-booking="${record.id}">编辑</button>
+                <button class="ghost-btn" data-traffic="${record.id}">登记流量</button>
+                <button class="ghost-btn danger-btn" data-delete-booking="${record.id}">删除</button>
+              </td>
+            </tr>
+          `;
+          })
+          .join('');
+        tbody.querySelectorAll('[data-edit-booking]').forEach(btn => {
+          btn.addEventListener('click', () => openBookingModal(btn.dataset.editBooking));
+        });
+        tbody.querySelectorAll('[data-traffic]').forEach(btn => {
+          btn.addEventListener('click', () => openTrafficModal(btn.dataset.traffic));
+        });
+        tbody.querySelectorAll('[data-delete-booking]').forEach(btn => {
+          btn.addEventListener('click', () => deleteBooking(btn.dataset.deleteBooking));
+        });
+        renderPager('bookingPagination', {
+          totalItems: filtered.length,
+          page: state.bookingPage,
+          pageSize: state.bookingPageSize,
+          pageSizeSelect: {
+            value: String(state.bookingPageSize),
+            options: [10, 20, 50, 100].map(n => ({ value: String(n), label: `${n}条/页` })),
+            onChange: nextValue => {
+              state.bookingPageSize = Math.max(1, Number(nextValue) || 10);
+              state.bookingPage = 1;
+              renderBookingTable();
+            }
+          },
+          onPageChange: nextPage => {
+            state.bookingPage = nextPage;
+            renderBookingTable();
+          }
+        });
+      }
+
+      function renderUserTable() {
+        const tbody = document.getElementById('userTable');
+        if (!state.users?.length) {
+          tbody.innerHTML = '<tr><td colspan="3" class="hint">暂无账号</td></tr>';
+          return;
+        }
+        tbody.innerHTML = state.users
+          .map(
+            user => `
+          <tr>
+            <td>${user.username}</td>
+            <td>${user.role || 'admin'}</td>
+            <td><button class="ghost-btn" data-reset-user="${user.id}">重置密码</button></td>
+          </tr>
+        `
+          )
+          .join('');
+        tbody.querySelectorAll('[data-reset-user]').forEach(btn => {
+          btn.addEventListener('click', () => resetUserPassword(btn.dataset.resetUser));
+        });
+      }
+
+      function updateStoreSelects() {
+        const storeFilter = document.getElementById('bookingStoreFilter');
+        const modalStore = document.getElementById('modalStore');
+        const prevFilterValue = storeFilter.value;
+        const prevModalValue = modalStore.value;
+        const options = ['<option value="all">全部门店</option>']
+          .concat(state.stores.map(store => `<option value="${store.id}">${store.name}</option>`))
+          .join('');
+        storeFilter.innerHTML = options;
+        modalStore.innerHTML = state.stores
+          .map(store => `<option value="${store.id}">${store.name}</option>`)
+          .join('');
+        if (prevFilterValue) storeFilter.value = prevFilterValue;
+        if (prevModalValue) modalStore.value = prevModalValue;
+      }
+
+      function updateInfluencerSelect() {
+        const list = document.getElementById('modalInfluencerList');
+        const sorted = [...state.influencers].sort((a, b) =>
+          (a.displayName || '').localeCompare(b.displayName || '', undefined, { sensitivity: 'base' })
+        );
+        // datalist 精确匹配回填用：label -> id
+        state._influencerLookup = new Map();
+        // 兼容用户只输入 handle / displayName 的场景
+        state._influencerLookupHandle = new Map(); // handle(去掉@) -> id
+        state._influencerLookupName = new Map(); // displayName(仅唯一时) -> id
+        list.innerHTML = sorted
+          .map(inf => {
+            const handle = inf.handle ? ` ${inf.handle}` : '';
+            const value = `${inf.displayName || '未命名达人'}${handle}`.trim();
+            state._influencerLookup.set(value.toLowerCase(), inf.id);
+            const nameKey = String(inf.displayName || '').trim().toLowerCase();
+            if (nameKey) {
+              if (state._influencerLookupName.has(nameKey)) {
+                state._influencerLookupName.set(nameKey, '');
+              } else {
+                state._influencerLookupName.set(nameKey, inf.id);
+              }
+            }
+            const handleKey = String(inf.handle || '')
+              .trim()
+              .toLowerCase()
+              .replace(/^@+/, '');
+            if (handleKey) state._influencerLookupHandle.set(handleKey, inf.id);
+            return `<option value="${value}"></option>`;
+          })
+          .join('');
+      }
+
+      function resolveInfluencerIdFromSearch(rawText) {
+        const raw = String(rawText || '').trim();
+        if (!raw) return '';
+        const key = raw.toLowerCase();
+        const byLabel = state._influencerLookup?.get(key);
+        if (byLabel) return byLabel;
+        const handleKey = key.replace(/^@+/, '');
+        const byHandle = state._influencerLookupHandle?.get(handleKey);
+        if (byHandle) return byHandle;
+        const byName = state._influencerLookupName?.get(key);
+        if (byName) return byName;
+        return '';
+      }
+
+      function setBookingInfluencerAlert(message) {
+        const alertEl = document.getElementById('modalInfluencerAlert');
+        const searchEl = document.getElementById('modalInfluencerSearch');
+        if (!alertEl || !searchEl) return;
+        const text = String(message || '').trim();
+        if (text) {
+          alertEl.textContent = text;
+          alertEl.classList.remove('hidden');
+          searchEl.classList.add('input-error');
+        } else {
+          alertEl.textContent = '';
+          alertEl.classList.add('hidden');
+          searchEl.classList.remove('input-error');
+        }
+      }
+
+      function normalizeInfluencerHandleForCompare(handleText) {
+        return String(handleText || '')
+          .trim()
+          .toLowerCase()
+          .replace(/^@+/, '');
+      }
+
+      function normalizeInfluencerNameForCompare(nameText) {
+        return String(nameText || '')
+          .trim()
+          .toLowerCase();
+      }
+
+      function setInfluencerDuplicateAlert(message, options = {}) {
+        const alertEl = document.getElementById('infDuplicateAlert');
+        const nameEl = document.getElementById('infName');
+        const handleEl = document.getElementById('infHandle');
+        if (!alertEl || !nameEl || !handleEl) return;
+        const text = String(message || '').trim();
+        if (text) {
+          alertEl.textContent = text;
+          alertEl.classList.remove('hidden');
+        } else {
+          alertEl.textContent = '';
+          alertEl.classList.add('hidden');
+        }
+        nameEl.classList.toggle('input-error', Boolean(options.highlightName) && Boolean(text));
+        handleEl.classList.toggle('input-error', Boolean(options.highlightHandle) && Boolean(text));
+      }
+
+      function syncBookingInfluencerFromSearch(options = {}) {
+        const searchEl = document.getElementById('modalInfluencerSearch');
+        const hiddenEl = document.getElementById('modalInfluencer');
+        if (!searchEl || !hiddenEl) return;
+        const raw = String(searchEl.value || '').trim();
+        const id = resolveInfluencerIdFromSearch(raw);
+        hiddenEl.value = id || '';
+        if (!raw || id) return setBookingInfluencerAlert('');
+        if (options.toastOnMiss) return setBookingInfluencerAlert('系统内未找到该达人，请先去【网红管理】新增达人后再选择');
+        return setBookingInfluencerAlert('');
+      }
+
+      function startEditStore(id) {
+        openStoreModal(id);
+      }
+
+      function startEditInfluencer(id) {
+        openInfluencerModal(id);
+      }
+
+      async function deleteInfluencer(id) {
+        if (!id) return;
+        const confirmed = confirm('确认删除该达人？如果存在关联预约或流量将无法删除。');
+        if (!confirmed) return;
+        try {
+          await apiFetch(`/api/influencers/${id}`, { method: 'DELETE' });
+          showToast('达人已删除');
+          await loadAllData();
+        } catch (error) {
+          showToast(error.message);
+        }
+      }
+
+      async function deleteBooking(id) {
+        if (!id) return;
+        const confirmed = confirm('确认删除该预约？相关流量记录也会被删除。');
+        if (!confirmed) return;
+        try {
+          await apiFetch(`/api/bookings/${id}`, { method: 'DELETE' });
+          showToast('预约已删除');
+          await loadAllData();
+        } catch (error) {
+          showToast(error.message);
+        }
+      }
+
+      async function deleteStore(id) {
+        if (!id) return;
+        const confirmed = confirm('确认删除该门店？如有预约将无法删除。');
+        if (!confirmed) return;
+        try {
+          await apiFetch(`/api/stores/${id}`, { method: 'DELETE' });
+          showToast('门店已删除');
+          await loadAllData();
+        } catch (error) {
+          showToast(error.message);
+        }
+      }
+
+      function openModal(which) {
+        document.getElementById('modalBackdrop').classList.remove('hidden');
+        document.getElementById('bookingModal').classList.toggle('hidden', which !== 'booking');
+        document.getElementById('trafficModal').classList.toggle('hidden', which !== 'traffic');
+        document.getElementById('influencerModal').classList.toggle('hidden', which !== 'influencer');
+        document.getElementById('infImportModal').classList.toggle('hidden', which !== 'infImport');
+        document.getElementById('storeModal').classList.toggle('hidden', which !== 'store');
+        document.getElementById('userModal').classList.toggle('hidden', which !== 'user');
+      }
+
+      function closeModals() {
+        document.getElementById('modalBackdrop').classList.add('hidden');
+        ['bookingModal', 'trafficModal', 'influencerModal', 'infImportModal', 'storeModal', 'userModal'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.classList.add('hidden');
+        });
+      }
+
+      function openBookingModal(id = '') {
+        if (typeof id !== 'string') id = '';
+        document.getElementById('bookingForm').reset();
+        updateStoreSelects();
+        updateInfluencerSelect();
+        document.getElementById('modalInfluencer').value = '';
+        document.getElementById('modalInfluencerSearch').value = '';
+        setBookingInfluencerAlert('');
+        if (id) {
+          state.editingBookingId = id;
+          const record = state.bookings.find(item => item.id === id);
+          if (record) {
+            document.getElementById('modalStore').value = record.storeId || '';
+            const inf = state.influencers.find(item => item.id === record.influencerId);
+            document.getElementById('modalInfluencer').value = record.influencerId || '';
+            if (inf) {
+              const label = `${inf.displayName || '未命名达人'}${inf.handle ? ` ${inf.handle}` : ''}`.trim();
+              document.getElementById('modalInfluencerSearch').value = label;
+            } else if (record.creatorName || record.handle) {
+              document.getElementById('modalInfluencerSearch').value = `${record.creatorName || ''} ${record.handle || ''}`.trim();
+            }
+            document.getElementById('modalSource').value = record.sourceType || '预约';
+            document.getElementById('modalVisitDate').value = record.visitDate || '';
+            document.getElementById('modalVisitWindow').value = record.visitWindow || '';
+            document.getElementById('modalService').value = record.serviceDetail || '';
+            document.getElementById('modalRights').value = record.videoRights || '';
+            document.getElementById('modalBudget').value = record.budgetMillionVND ?? '';
+            document.getElementById('modalPostDate').value = record.postDate || '';
+            document.getElementById('modalNotes').value = record.notes || '';
+          }
+          document.getElementById('bookingModalTitle').textContent = '编辑预约';
+          document.getElementById('bookingSubmit').textContent = '保存修改';
+        } else {
+          state.editingBookingId = '';
+          document.getElementById('bookingModalTitle').textContent = '新增预约';
+          document.getElementById('bookingSubmit').textContent = '提交预约';
+        }
+        openModal('booking');
+      }
+
+      function openStoreModal(id = '') {
+        document.getElementById('storeForm').reset();
+        document.getElementById('storeImageData').value = '';
+        if (id) {
+          state.editingStoreId = id;
+          const store = state.stores.find(item => item.id === id);
+          if (store) {
+            document.getElementById('storeName').value = store.name;
+            document.getElementById('storeAddress').value = store.address || '';
+            document.getElementById('storeImageData').value = store.imageData || '';
+            document.getElementById('storeModalTitle').textContent = '编辑门店';
+            document.getElementById('storeSubmit').textContent = '保存更新';
+          }
+        } else {
+          state.editingStoreId = '';
+          document.getElementById('storeModalTitle').textContent = '新增门店';
+          document.getElementById('storeSubmit').textContent = '保存门店';
+        }
+        openModal('store');
+      }
+
+      function openInfluencerModal(id = '') {
+        document.getElementById('influencerForm').reset();
+        document.getElementById('infId').value = id;
+        document.getElementById('infAvatarData').value = '';
+        setInfluencerDuplicateAlert('');
+        if (id) {
+          state.editingInfluencerId = id;
+          const inf = state.influencers.find(item => item.id === id);
+          if (inf) {
+            document.getElementById('infName').value = inf.displayName;
+            document.getElementById('infHandle').value = inf.handle || '';
+            document.getElementById('infProfileLink').value = inf.profileLink || '';
+            document.getElementById('infAvatarData').value = inf.avatarData || '';
+            document.getElementById('infContactMethod').value = inf.contactMethod || '';
+            document.getElementById('infContactInfo').value = inf.contactInfo || '';
+            document.getElementById('infNotes').value = inf.notes || '';
+            document.getElementById('infModalTitle').textContent = '编辑达人';
+            document.getElementById('infSubmit').textContent = '保存修改';
+          }
+        } else {
+          state.editingInfluencerId = '';
+          document.getElementById('infModalTitle').textContent = '新增达人';
+          document.getElementById('infSubmit').textContent = '保存达人';
+        }
+        openModal('influencer');
+      }
+
+      function openInfImportModal() {
+        document.getElementById('infImportForm').reset();
+        openModal('infImport');
+      }
+
+      function openTrafficModal(bookingId) {
+        document.getElementById('trafficForm').reset();
+        document.getElementById('trafficBookingId').value = bookingId;
+        document.getElementById('trafficId').value = '';
+        const existing = state.trafficLogs.find(log => log.bookingId === bookingId);
+        if (existing) {
+          document.getElementById('trafficId').value = existing.id;
+          document.getElementById('trafficPostDate').value = existing.postDate || '';
+          document.getElementById('trafficVideo').value = existing.videoLink || '';
+          document.getElementById('trafficViews').value = existing.metrics?.views ?? '';
+          document.getElementById('trafficLikes').value = existing.metrics?.likes ?? '';
+          document.getElementById('trafficComments').value = existing.metrics?.comments ?? '';
+          document.getElementById('trafficShares').value = existing.metrics?.shares ?? '';
+          document.getElementById('trafficNote').value = existing.note || '';
+        }
+        openModal('traffic');
+      }
+
+      async function resetUserPassword(id) {
+        const password = prompt('请输入新密码');
+        if (!password) return;
+        await apiFetch(`/api/users/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ password })
+        });
+        showToast('密码已更新');
+      }
+
+      async function loadAllData(options = {}) {
+        const preservePages = Boolean(options.preservePages);
+        const prevPages = {
+          infPage: state.infPage,
+          bookingPage: state.bookingPage,
+          overviewTrafficPage: state.overviewTrafficPage
+        };
+        const [storesRes, infRes, bookingsRes, trafficRes, overviewRes, usersRes] = await Promise.all([
+          apiFetch('/api/stores'),
+          apiFetch('/api/influencers'),
+          apiFetch('/api/bookings'),
+          apiFetch('/api/traffic'),
+          apiFetch('/api/overview'),
+          apiFetch('/api/users')
+        ]);
+        state.stores = storesRes.stores || [];
+        state.influencers = infRes.influencers || [];
+        state.bookings = bookingsRes.records || [];
+        state.trafficLogs = trafficRes.logs || [];
+        state.overview = overviewRes.data;
+        state.users = usersRes.users || [];
+        if (preservePages) {
+          state.infPage = Math.max(1, Number(prevPages.infPage) || 1);
+          state.bookingPage = Math.max(1, Number(prevPages.bookingPage) || 1);
+          state.overviewTrafficPage = Math.max(1, Number(prevPages.overviewTrafficPage) || 1);
+        } else {
+          state.infPage = 1;
+          state.bookingPage = 1;
+          state.overviewTrafficPage = 1;
+        }
+        document.getElementById('welcomeHint').textContent = '';
+        updatePageTitle();
+        renderOverview();
+        renderInfluencers();
+        renderStoreCards();
+        renderBookingTable();
+        renderUserTable();
+        updateStoreSelects();
+        updateInfluencerSelect();
+      }
+
+      async function bootstrap() {
+        const templateCsv = '达人昵称,账号,联系渠道,联系方式,备注\n示例达人,@demo,Zalo,0123456789,备注可留空';
+        document.getElementById('infTemplateLink').setAttribute(
+          'href',
+          'data:text/csv;charset=utf-8,' + encodeURIComponent(templateCsv)
+        );
+        document.querySelectorAll('.menu button').forEach(btn => {
+          btn.addEventListener('click', () => switchView(btn.dataset.view));
+        });
+        document.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', closeModals));
+        document.getElementById('openBookingModal').addEventListener('click', () => openBookingModal());
+        const modalInfluencerSearchEl = document.getElementById('modalInfluencerSearch');
+        modalInfluencerSearchEl.addEventListener('input', () => syncBookingInfluencerFromSearch());
+        modalInfluencerSearchEl.addEventListener('change', () => syncBookingInfluencerFromSearch());
+        modalInfluencerSearchEl.addEventListener('blur', () => syncBookingInfluencerFromSearch({ toastOnMiss: true }));
+        const imagePreviewBackdrop = document.getElementById('imagePreviewBackdrop');
+        const imagePreviewImg = document.getElementById('imagePreviewImg');
+        const imagePreviewTitle = document.getElementById('imagePreviewTitle');
+        function openImagePreview(src, title) {
+          imagePreviewImg.src = src || '';
+          imagePreviewImg.alt = title || '头像预览';
+          imagePreviewTitle.textContent = title ? `头像预览 · ${title}` : '头像预览';
+          imagePreviewBackdrop.classList.remove('hidden');
+          imagePreviewBackdrop.setAttribute('aria-hidden', 'false');
+        }
+        function closeImagePreview() {
+          imagePreviewBackdrop.classList.add('hidden');
+          imagePreviewBackdrop.setAttribute('aria-hidden', 'true');
+          imagePreviewImg.src = '';
+          imagePreviewImg.alt = '';
+        }
+        document.getElementById('closeImagePreview').addEventListener('click', closeImagePreview);
+        imagePreviewBackdrop.addEventListener('click', event => {
+          if (event.target === imagePreviewBackdrop) closeImagePreview();
+        });
+        document.addEventListener('keydown', event => {
+          if (event.key === 'Escape' && !imagePreviewBackdrop.classList.contains('hidden')) {
+            closeImagePreview();
+          }
+        });
+        document.getElementById('overviewTodayBookings').addEventListener('click', event => {
+          const target = event.target;
+          const img = target?.closest?.('[data-preview-src]');
+          if (!img) return;
+          const src = img.getAttribute('data-preview-src') || img.getAttribute('src') || '';
+          const title = img.getAttribute('data-preview-alt') || img.getAttribute('alt') || '';
+          if (!src) return;
+          openImagePreview(src, title);
+        });
+        document.getElementById('overviewTrafficStoreFilter').addEventListener('change', event => {
+          state.overviewTrafficFilters.store = event.target.value;
+          state.overviewTrafficPage = 1;
+          renderOverview();
+        });
+        document.getElementById('overviewTrafficKeyword').addEventListener('input', event => {
+          state.overviewTrafficFilters.q = event.target.value;
+          state.overviewTrafficPage = 1;
+          renderOverview();
+        });
+        document.getElementById('bookingKeyword').addEventListener('input', event => {
+          state.filters.q = event.target.value;
+          state.bookingPage = 1;
+          renderBookingTable();
+        });
+        document.getElementById('bookingStoreFilter').addEventListener('change', event => {
+          state.filters.store = event.target.value;
+          state.bookingPage = 1;
+          renderBookingTable();
+        });
+        document.getElementById('bookingDate').addEventListener('change', event => {
+          state.filters.date = event.target.value;
+          state.bookingPage = 1;
+          renderBookingTable();
+        });
+        document.getElementById('influencerSearch').addEventListener('input', () => {
+          state.infPage = 1;
+          renderInfluencers();
+        });
+        let infResizeTimer = null;
+        window.addEventListener('resize', () => {
+          if (state.currentView !== 'influencers') return;
+          clearTimeout(infResizeTimer);
+          infResizeTimer = setTimeout(() => {
+            state.infPage = 1;
+            renderInfluencers();
+          }, 120);
+        });
+        document.getElementById('openInfModal').addEventListener('click', () => openInfluencerModal());
+        document.getElementById('openInfImport').addEventListener('click', openInfImportModal);
+        document.getElementById('openStoreModal').addEventListener('click', () => openStoreModal());
+        document.getElementById('openUserModal').addEventListener('click', () => {
+          document.getElementById('userForm').reset();
+          openModal('user');
+        });
+        document.getElementById('infPhoto').addEventListener('change', async event => {
+          const file = event.target.files?.[0];
+          document.getElementById('infAvatarData').value = file ? await dataUrlFromFile(file) : '';
+        });
+        document.getElementById('storePhoto').addEventListener('change', async event => {
+          const file = event.target.files?.[0];
+          document.getElementById('storeImageData').value = file ? await dataUrlFromFile(file) : '';
+        });
+        ['input', 'change'].forEach(evt => {
+          document.getElementById('infName').addEventListener(evt, () => setInfluencerDuplicateAlert(''));
+          document.getElementById('infHandle').addEventListener(evt, () => setInfluencerDuplicateAlert(''));
+        });
+        document.getElementById('loginForm').addEventListener('submit', async event => {
+          event.preventDefault();
+          const formData = new FormData(event.currentTarget);
+          try {
+            const res = await fetch('/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: formData.get('username'), password: formData.get('password') })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              showToast(data.error || '登录失败');
+              return;
+            }
+            setToken(data.token);
+            state.user = data.user;
+            localStorage.setItem('booking_user', JSON.stringify(data.user));
+            showApp();
+            document.getElementById('sidebarUser').textContent = data.user.username;
+            await loadAllData();
+          } catch (error) {
+            showToast(error.message);
+          }
+        });
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+          if (state.token) {
+            try {
+              await apiFetch('/api/logout', { method: 'POST', body: '{}' });
+            } catch (error) {
+              console.warn(error);
+            }
+          }
+          setToken('');
+          showLogin();
+        });
+        document.getElementById('openInfModal').addEventListener('click', () => openInfluencerModal());
+        document.getElementById('openUserModal').addEventListener('click', () => {
+          document.getElementById('userForm').reset();
+          openModal('user');
+        });
+        document.getElementById('influencerForm').addEventListener('submit', async event => {
+          event.preventDefault();
+          const formEl = event.currentTarget;
+          const formData = new FormData(formEl);
+          const payload = Object.fromEntries(formData.entries());
+          const isCreate = !state.editingInfluencerId;
+          if (isCreate) {
+            const nameKey = normalizeInfluencerNameForCompare(payload.displayName);
+            const handleKey = normalizeInfluencerHandleForCompare(payload.handle);
+            const dupByName = nameKey
+              ? state.influencers.find(inf => normalizeInfluencerNameForCompare(inf.displayName) === nameKey)
+              : null;
+            const dupByHandle = handleKey
+              ? state.influencers.find(inf => normalizeInfluencerHandleForCompare(inf.handle) === handleKey)
+              : null;
+            const hasNameDup = Boolean(dupByName);
+            const hasHandleDup = Boolean(dupByHandle);
+            if (hasNameDup || hasHandleDup) {
+              const pieces = [];
+              if (hasNameDup) pieces.push('昵称');
+              if (hasHandleDup) pieces.push('账号');
+              const matched = dupByHandle || dupByName;
+              const matchedText = matched
+                ? `（已存在：${matched.displayName || '未命名达人'}${matched.handle ? ` ${matched.handle}` : ''}）`
+                : '';
+              setInfluencerDuplicateAlert(`该达人${pieces.join('和')}已存在，无需重复新增${matchedText}`, {
+                highlightName: hasNameDup,
+                highlightHandle: hasHandleDup
+              });
+              if (hasNameDup) {
+                document.getElementById('infName').focus();
+              } else {
+                document.getElementById('infHandle').focus();
+              }
+              return;
+            }
+          }
+          const method = state.editingInfluencerId ? 'PUT' : 'POST';
+          const url = state.editingInfluencerId ? `/api/influencers/${state.editingInfluencerId}` : '/api/influencers';
+          const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+          if (isCreate && res?.influencer?.id) {
+            state._justCreatedInfluencerId = res.influencer.id;
+          }
+          showToast('达人信息已保存');
+          state.editingInfluencerId = '';
+          formEl.reset();
+          document.getElementById('infSubmit').textContent = '保存达人';
+          closeModals();
+          await loadAllData({ preservePages: !isCreate });
+        });
+        document.getElementById('storeForm').addEventListener('submit', async event => {
+          event.preventDefault();
+          const formEl = event.currentTarget;
+          const payload = {
+            name: document.getElementById('storeName').value,
+            address: document.getElementById('storeAddress').value,
+            imageData: document.getElementById('storeImageData').value
+          };
+          const method = state.editingStoreId ? 'PUT' : 'POST';
+          const url = state.editingStoreId ? `/api/stores/${state.editingStoreId}` : '/api/stores';
+          await apiFetch(url, { method, body: JSON.stringify(payload) });
+          showToast('门店已保存');
+          state.editingStoreId = '';
+          document.getElementById('storeSubmit').textContent = '保存门店';
+          formEl.reset();
+          closeModals();
+          await loadAllData();
+        });
+        document.getElementById('storeReset').addEventListener('click', () => {
+          state.editingStoreId = '';
+          document.getElementById('storeForm').reset();
+          document.getElementById('storeSubmit').textContent = '保存门店';
+        });
+        document.getElementById('infImportForm').addEventListener('submit', async event => {
+          event.preventDefault();
+          const file = document.getElementById('infImportFile').files?.[0];
+          if (!file) {
+            showToast('请选择 CSV 文件');
+            return;
+          }
+          try {
+            const text = await file.text();
+            const lines = text
+              .split(/\r?\n/)
+              .map(line => line.trim())
+              .filter(Boolean);
+            if (!lines.length) {
+              showToast('文件为空');
+              return;
+            }
+            // 如果首行包含 header，跳过
+            const rows = lines.map(line => line.split(','));
+            const header = rows[0]?.[0] || '';
+            if (header.toLowerCase().includes('displayname') || header.includes('达人') || header.includes('昵称')) {
+              rows.shift();
+            }
+            let success = 0;
+            for (const cols of rows) {
+              const [displayName, handle, contactMethod, contactInfo, notes] = cols.map(col => (col || '').trim());
+              if (!displayName) continue;
+              const payload = { displayName, handle, contactMethod, contactInfo, notes };
+              await apiFetch('/api/influencers', { method: 'POST', body: JSON.stringify(payload) });
+              success += 1;
+            }
+            showToast(`导入完成，成功 ${success} 条`);
+            closeModals();
+            await loadAllData();
+          } catch (error) {
+            showToast(error.message);
+          }
+        });
+        document.getElementById('bookingForm').addEventListener('submit', async event => {
+          event.preventDefault();
+          const formEl = event.currentTarget;
+          syncBookingInfluencerFromSearch({ toastOnMiss: true });
+          const formData = new FormData(formEl);
+          const payload = Object.fromEntries(formData.entries());
+          const id = state.editingBookingId;
+          const url = id ? `/api/bookings/${id}` : '/api/bookings';
+          const method = id ? 'PUT' : 'POST';
+          if (!payload.influencerId) payload.influencerId = resolveInfluencerIdFromSearch(payload.influencerSearch);
+          if (!payload.influencerId) {
+            const influencerInput = document.getElementById('modalInfluencerSearch');
+            if (influencerInput) influencerInput.focus();
+            return;
+          }
+          delete payload.influencerSearch;
+          try {
+            await apiFetch(url, { method, body: JSON.stringify(payload) });
+            showToast(id ? '预约已更新' : '预约已创建');
+            state.editingBookingId = '';
+            closeModals();
+            formEl.reset();
+            await loadAllData({ preservePages: Boolean(id) });
+          } catch (error) {
+            showToast(error.message);
+          }
+        });
+        document.getElementById('trafficForm').addEventListener('submit', async event => {
+          event.preventDefault();
+          const formData = new FormData(event.currentTarget);
+          const payload = Object.fromEntries(formData.entries());
+          ['views', 'likes', 'comments', 'shares'].forEach(key => {
+            payload[key] = Number(payload[key] || 0);
+          });
+          const trafficId = payload.trafficId;
+          const url = trafficId ? `/api/traffic/${trafficId}` : '/api/traffic';
+          const method = trafficId ? 'PUT' : 'POST';
+          if (!trafficId) {
+            delete payload.trafficId;
+          }
+          await apiFetch(url, { method, body: JSON.stringify(payload) });
+          showToast(trafficId ? '流量已更新' : '流量已登记');
+          closeModals();
+          await loadAllData({ preservePages: true });
+        });
+        document.getElementById('autoFetch').addEventListener('click', async () => {
+          const videoLink = document.getElementById('trafficVideo').value.trim();
+          if (!videoLink) return showToast('请填写视频链接');
+          try {
+            await autoFillTrafficFromVideoLink(videoLink, { force: true, toastOnSuccess: true });
+          } catch (error) {
+            showToast(error.message);
+          }
+        });
+        const trafficVideoEl = document.getElementById('trafficVideo');
+        let lastAutoFetchedLink = '';
+        let autoFetchTimer = null;
+        let autoFetchSeq = 0;
+        async function autoFillTrafficFromVideoLink(videoLink, options = {}) {
+          const { force = false, toastOnSuccess = false } = options;
+          const seq = (autoFetchSeq += 1);
+          const data = await apiFetch('/api/traffic/fetch', {
+            method: 'POST',
+            body: JSON.stringify({ videoLink })
+          });
+          if (seq !== autoFetchSeq) return;
+          if (document.getElementById('trafficVideo').value.trim() !== videoLink) return;
+          const metrics = data.data?.metrics || {};
+          const postDate = data.data?.postDate || data.data?.captionDate || '';
+          const postDateEl = document.getElementById('trafficPostDate');
+          if (force || !postDateEl.value) {
+            postDateEl.value = postDate;
+          }
+          const viewsEl = document.getElementById('trafficViews');
+          const likesEl = document.getElementById('trafficLikes');
+          const commentsEl = document.getElementById('trafficComments');
+          const sharesEl = document.getElementById('trafficShares');
+          if (force || !viewsEl.value) viewsEl.value = metrics.views || '';
+          if (force || !likesEl.value) likesEl.value = metrics.likes || '';
+          if (force || !commentsEl.value) commentsEl.value = metrics.comments || '';
+          if (force || !sharesEl.value) sharesEl.value = metrics.shares || '';
+          if (toastOnSuccess) {
+            showToast('已自动填充发布时间与流量数据');
+          }
+        }
+        trafficVideoEl.addEventListener('blur', () => {
+          const videoLink = trafficVideoEl.value.trim();
+          if (!videoLink) return;
+          if (videoLink === lastAutoFetchedLink) return;
+          // 仅在发布时间为空时自动抓取，避免覆盖用户手填
+          if (document.getElementById('trafficPostDate').value) return;
+          lastAutoFetchedLink = videoLink;
+          clearTimeout(autoFetchTimer);
+          autoFetchTimer = setTimeout(async () => {
+            try {
+              await autoFillTrafficFromVideoLink(videoLink, { force: false, toastOnSuccess: false });
+            } catch (error) {
+              showToast('自动抓取失败，可点击“尝试自动抓取”或手动填写');
+              console.warn(error);
+            }
+          }, 200);
+        });
+        document.getElementById('userForm').addEventListener('submit', async event => {
+          event.preventDefault();
+          const formEl = event.currentTarget;
+          const formData = new FormData(formEl);
+          await apiFetch('/api/users', { method: 'POST', body: JSON.stringify(Object.fromEntries(formData.entries())) });
+          showToast('账号已创建');
+          formEl.reset();
+          closeModals();
+          await loadAllData();
+        });
+
+        if (state.user) {
+          document.getElementById('sidebarUser').textContent = state.user.username || '';
+        }
+
+        if (state.token) {
+          try {
+            showApp();
+            await loadAllData();
+          } catch (error) {
+            showToast(error.message);
+            showLogin();
+          }
+        } else {
+          showLogin();
+        }
+      }
+
+      bootstrap();
+    </script>
+  </body>
+</html>
