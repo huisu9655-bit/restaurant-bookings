@@ -4,8 +4,8 @@
 
 - 前端 `index.html`：原生 JS 后台，包含登录页、蓝白主题、搜索/筛选、预约弹窗、流量登记弹窗。
 - 后端 `server.js`：原生 Node.js HTTP 服务，托管静态资源并暴露 `/api/login`、`/api/logout`、`/api/stores`、`/api/influencers`、`/api/bookings`、`/api/traffic`、`/api/traffic/fetch`、`/api/users`、`/api/overview`。
-- 配置 `config.js`：读取 `.env` 或 `app.config.json` 中的 `PORT`，无需额外密钥。
-- 数据库：`data/app.db`（SQLite）统一保存门店、达人、预约、流量日志与用户账户；首次启动会自动从 `data/bookings.json`（若存在）导入历史数据。
+- 配置 `config.js`：读取 `.env` 或 `app.config.json` 中的 `PORT`，并支持可选 PostgreSQL 连接配置（不要把生产机密提交到仓库）。
+- 数据库：默认使用 `data/app.db`（SQLite）；也可通过配置切换到 PostgreSQL。首次启动若发现数据库为空，会尝试从 `data/bookings.json`（若存在）导入历史数据并自动建表。
 
 ## 功能亮点
 - **投放总览**：展示预约数量、门店/达人档案、累计曝光，并列出最近的流量登记。
@@ -19,7 +19,9 @@
 ├─ data/app.db             # SQLite 数据库文件（首次运行自动创建）
 ├─ data/bookings.json      # 可选：旧版 JSON 备份，首次运行时会尝试导入
 ├─ index.html              # 蓝白主题后台界面（含登录/菜单/弹窗）
-├─ influencerStore.js      # 数据读写与聚合工具
+├─ influencerStore.js      # 数据层门面：按配置选择 SQLite / PostgreSQL
+├─ sqliteStore.js          # SQLite 数据读写与聚合工具
+├─ postgresStore.js        # PostgreSQL 数据读写与聚合工具
 ├─ server.js               # HTTP 服务与 REST API
 ├─ config.js               # 端口配置
 ├─ chat.html               # 旧聊天页占位，只提示返回后台
@@ -38,6 +40,25 @@
    npm start
    ```
    浏览器访问 [http://localhost:8787](http://localhost:8787) 即可看到登录页（默认账号 `admin / admin123`）。登录后即可使用后台。
+
+## PostgreSQL（可选）
+默认仍使用 SQLite。如需切换到 PostgreSQL，在 `.env` 或 `app.config.json` 中配置：
+```bash
+DB_DRIVER=postgres
+DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME
+# 可选：需要 TLS 的托管库可开启
+PG_SSL=true
+# 可选：连接池大小
+PG_POOL_MAX=10
+```
+说明：
+- 首次连接 PostgreSQL 会自动建表；若表为空，会尝试从 `data/bookings.json` 导入旧数据，并创建默认账号 `admin / admin123`。
+- 如需把当前 SQLite 数据迁移到 PostgreSQL，可先导出 `data/bookings.json`：
+  ```bash
+  node tools/export_sqlite_to_bookings_json.js
+  ```
+  然后再配置 `DB_DRIVER=postgres` 并启动服务，让 PG 自动导入。
+- `DATABASE_URL` 属于敏感信息，建议仅放在本机 `.env`，不要提交到仓库。
 
 ## API 说明
 > 所有接口除 `POST /api/login` 外均需要在请求头携带 `Authorization: Bearer <token>`。
@@ -95,13 +116,14 @@
 > **提示**：预算字段以“万 VND”为单位，流量指标填入真实数值，前端会自动格式化展示。
 
 ## 数据库存储
-- SQLite 文件位于 `data/app.db`，使用 `better-sqlite3` 同步读写，表结构包括：
+- SQLite 文件位于 `data/app.db`，使用 `better-sqlite3` 同步读写；也可切换为 PostgreSQL（`pg`）。
+- 表结构包括：
   - `stores`：门店信息（名称、地址、图片）。
   - `influencers`：达人档案（昵称、账号、照片、联系方式、备注）。
   - `bookings`：预约记录（关联门店与达人、到访时间、权益、预算等）。
   - `traffic_logs`：流量登记（关联预约或达人、视频链接及各项指标）。
   - `users`：后台账号（用户名、角色、密码哈希）。
-- 若 `data/bookings.json` 存在，首次启动会自动导入其内容；之后所有数据均直接写入 SQLite。
+- 若 `data/bookings.json` 存在，首次启动且数据库为空时会自动导入其内容；之后所有数据均直接写入当前数据库。
 
 ## 其它说明
 - 旧版翻译/聊天室功能已完全移除；`chat.html` 仅提示用户返回后台主页。

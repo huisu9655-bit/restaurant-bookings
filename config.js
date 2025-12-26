@@ -58,8 +58,37 @@ function pickNumber(key, fallback) {
   return fallback;
 }
 
+function pickString(key, fallback = '') {
+  const envValue = process.env[key];
+  if (typeof envValue === 'string' && envValue.trim()) {
+    return envValue.trim();
+  }
+  const localValue = localConfig[key];
+  if (typeof localValue === 'string' && localValue.trim()) {
+    return localValue.trim();
+  }
+  return fallback;
+}
+
+function pickBoolean(key, fallback = false) {
+  const envValue = process.env[key];
+  if (typeof envValue === 'string' && envValue.trim()) {
+    const normalized = envValue.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) return false;
+  }
+  const localValue = localConfig[key];
+  if (typeof localValue === 'boolean') return localValue;
+  return fallback;
+}
+
 const config = {
-  PORT: pickNumber('PORT', DEFAULT_PORT)
+  PORT: pickNumber('PORT', DEFAULT_PORT),
+  DB_DRIVER: pickString('DB_DRIVER', 'sqlite'),
+  DATABASE_URL: pickString('DATABASE_URL', ''),
+  PG_SSL: pickBoolean('PG_SSL', false),
+  PG_POOL_MAX: pickNumber('PG_POOL_MAX', 10),
+  MAX_BODY_BYTES: pickNumber('MAX_BODY_BYTES', 30 * 1024 * 1024)
 };
 
 module.exports = config;

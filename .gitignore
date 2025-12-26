@@ -10,3 +10,6 @@ app.config.json
 data/app.db
 data/app.db-*
 data/bookings.json
+
+# 本地运行日志
+.server.log

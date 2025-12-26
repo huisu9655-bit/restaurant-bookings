@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { PORT } = require('./config');
+const { PORT, MAX_BODY_BYTES } = require('./config');
 const {
   getAllStores,
   createStore,
@@ -12,6 +12,10 @@ const {
   createInfluencer,
   updateInfluencer,
   deleteInfluencer,
+  listInfluencerFiles,
+  getInfluencerFile,
+  createInfluencerFile,
+  deleteInfluencerFile,
   getAllBookings,
   updateBooking,
   deleteBooking,
@@ -53,16 +57,25 @@ function sendJson(res, statusCode, payload) {
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
-    let body = '';
+    const chunks = [];
+    let totalBytes = 0;
+    let tooLarge = false;
     req.on('data', chunk => {
-      body += chunk;
-      if (body.length > 2e6) {
-        req.destroy();
-        reject(new Error('请求体过大'));
+      totalBytes += chunk.length || 0;
+      if (totalBytes > MAX_BODY_BYTES) {
+        tooLarge = true;
+      }
+      if (!tooLarge) {
+        chunks.push(chunk);
       }
     });
     req.on('end', () => {
       try {
+        if (tooLarge) {
+          reject(new Error('请求体过大'));
+          return;
+        }
+        const body = chunks.length ? Buffer.concat(chunks).toString('utf-8') : '';
         const parsed = body ? JSON.parse(body) : {};
         resolve(parsed);
       } catch (error) {
@@ -235,7 +248,7 @@ function handleUnauthorized(res, message) {
 }
 
 async function refreshTrafficMetricsJob() {
-  const targets = getTrafficLogsForRefresh(100);
+  const targets = await getTrafficLogsForRefresh(100);
   if (!targets.length) {
     console.log('[cron] no traffic logs to refresh');
     return;
@@ -252,6 +265,12 @@ async function refreshTrafficMetricsJob() {
   console.log('[cron] refresh finished');
 }
 
+function safeRefreshTrafficMetricsJob() {
+  return refreshTrafficMetricsJob().catch(error => {
+    console.warn('[cron] refresh job failed:', error && error.message ? error.message : error);
+  });
+}
+
 function scheduleDailyRefresh() {
   const now = new Date();
   const next = new Date(now);
@@ -261,8 +280,8 @@ function scheduleDailyRefresh() {
   }
   const delay = next.getTime() - now.getTime();
   setTimeout(() => {
-    refreshTrafficMetricsJob();
-    setInterval(refreshTrafficMetricsJob, 24 * 60 * 60 * 1000);
+    safeRefreshTrafficMetricsJob();
+    setInterval(safeRefreshTrafficMetricsJob, 24 * 60 * 60 * 1000);
   }, delay);
 }
 
@@ -284,7 +303,7 @@ const server = http.createServer(async (req, res) => {
       if (!username || !password) {
         return sendJson(res, 400, { error: '请输入账号和密码' });
       }
-      const user = findUserByUsername(username);
+      const user = await findUserByUsername(username);
       if (!user || hashPassword(password) !== user.passwordHash) {
         return sendJson(res, 401, { error: '账号或密码错误' });
       }
@@ -324,46 +343,74 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (method === 'GET' && pathname === '/api/overview') {
-      return sendJson(res, 200, { ok: true, data: buildOverview() });
+      return sendJson(res, 200, { ok: true, data: await buildOverview() });
     }
 
     if (method === 'GET' && pathname === '/api/stores') {
-      return sendJson(res, 200, { ok: true, stores: getAllStores() });
+      return sendJson(res, 200, { ok: true, stores: await getAllStores() });
     }
     if (method === 'POST' && pathname === '/api/stores') {
       const payload = await readRequestBody(req);
-      const store = createStore(payload);
+      const store = await createStore(payload);
       return sendJson(res, 201, { ok: true, store });
     }
     if (method === 'PUT' && pathname.startsWith('/api/stores/')) {
       const id = decodeURIComponent(pathname.split('/').pop());
       const payload = await readRequestBody(req);
-      const store = updateStore(id, payload);
+      const store = await updateStore(id, payload);
       return sendJson(res, 200, { ok: true, store });
     }
     if (method === 'DELETE' && pathname.startsWith('/api/stores/')) {
       const id = decodeURIComponent(pathname.split('/').pop());
-      deleteStore(id);
+      await deleteStore(id);
       return sendJson(res, 200, { ok: true });
     }
 
     if (method === 'GET' && pathname === '/api/influencers') {
-      return sendJson(res, 200, { ok: true, influencers: getAllInfluencers() });
+      return sendJson(res, 200, { ok: true, influencers: await getAllInfluencers() });
     }
     if (method === 'POST' && pathname === '/api/influencers') {
       const payload = await readRequestBody(req);
-      const influencer = createInfluencer(payload);
+      const influencer = await createInfluencer(payload);
       return sendJson(res, 201, { ok: true, influencer });
+    }
+    if (pathname.startsWith('/api/influencers/') && pathname.includes('/files')) {
+      const parts = pathname.split('/').filter(Boolean);
+      const influencerId = decodeURIComponent(parts[2] || '');
+      const marker = parts[3] || '';
+      if (marker !== 'files') {
+        return sendJson(res, 404, { error: 'Not Found' });
+      }
+      const fileId = parts[4] ? decodeURIComponent(parts[4]) : '';
+      if (method === 'GET' && !fileId) {
+        const kind = (urlObj.searchParams.get('kind') || '').trim();
+        const files = await listInfluencerFiles(influencerId, kind);
+        return sendJson(res, 200, { ok: true, files });
+      }
+      if (method === 'POST' && !fileId) {
+        const payload = await readRequestBody(req);
+        const file = await createInfluencerFile(influencerId, payload);
+        return sendJson(res, 201, { ok: true, file });
+      }
+      if (method === 'GET' && fileId) {
+        const file = await getInfluencerFile(influencerId, fileId);
+        return sendJson(res, 200, { ok: true, file });
+      }
+      if (method === 'DELETE' && fileId) {
+        await deleteInfluencerFile(influencerId, fileId);
+        return sendJson(res, 200, { ok: true });
+      }
+      return sendJson(res, 405, { error: 'Method Not Allowed' });
     }
     if (method === 'PUT' && pathname.startsWith('/api/influencers/')) {
       const id = decodeURIComponent(pathname.split('/').pop());
       const payload = await readRequestBody(req);
-      const influencer = updateInfluencer(id, payload);
+      const influencer = await updateInfluencer(id, payload);
       return sendJson(res, 200, { ok: true, influencer });
     }
     if (method === 'DELETE' && pathname.startsWith('/api/influencers/')) {
       const id = decodeURIComponent(pathname.split('/').pop());
-      deleteInfluencer(id);
+      await deleteInfluencer(id);
       return sendJson(res, 200, { ok: true });
     }
 
@@ -374,14 +421,14 @@ const server = http.createServer(async (req, res) => {
         startDate: (urlObj.searchParams.get('startDate') || '').trim(),
         endDate: (urlObj.searchParams.get('endDate') || '').trim()
       };
-      const allRecords = getAllBookings();
+      const allRecords = await getAllBookings();
       const filtered = filterBookings(allRecords, filters);
       return sendJson(res, 200, {
         ok: true,
         filters,
         records: filtered,
         summary: buildSummary(filtered),
-        stores: getStoreOptions()
+        stores: await getStoreOptions()
       });
     }
     if (method === 'POST' && pathname === '/api/bookings') {
@@ -395,8 +442,8 @@ const server = http.createServer(async (req, res) => {
       if (!payload.visitDate) {
         return sendJson(res, 400, { error: '请填写到访日期' });
       }
-      const record = createBooking(payload);
-      const allRecords = getAllBookings();
+      const record = await createBooking(payload);
+      const allRecords = await getAllBookings();
       return sendJson(res, 201, {
         ok: true,
         record,
@@ -406,8 +453,8 @@ const server = http.createServer(async (req, res) => {
     if (method === 'PUT' && pathname.startsWith('/api/bookings/')) {
       const id = decodeURIComponent(pathname.split('/').pop());
       const payload = await readRequestBody(req);
-      const record = updateBooking(id, payload);
-      const allRecords = getAllBookings();
+      const record = await updateBooking(id, payload);
+      const allRecords = await getAllBookings();
       return sendJson(res, 200, {
         ok: true,
         record,
@@ -416,8 +463,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (method === 'DELETE' && pathname.startsWith('/api/bookings/')) {
       const id = decodeURIComponent(pathname.split('/').pop());
-      deleteBooking(id);
-      const allRecords = getAllBookings();
+      await deleteBooking(id);
+      const allRecords = await getAllBookings();
       return sendJson(res, 200, {
         ok: true,
         summary: buildSummary(allRecords)
@@ -425,17 +472,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (method === 'GET' && pathname === '/api/traffic') {
-      return sendJson(res, 200, { ok: true, logs: getAllTrafficLogs() });
+      return sendJson(res, 200, { ok: true, logs: await getAllTrafficLogs() });
     }
     if (method === 'POST' && pathname === '/api/traffic') {
       const payload = await readRequestBody(req);
-      const log = createTrafficLog(payload);
+      const log = await createTrafficLog(payload);
       return sendJson(res, 201, { ok: true, log });
     }
     if (method === 'PUT' && pathname.startsWith('/api/traffic/')) {
       const id = decodeURIComponent(pathname.split('/').pop());
       const payload = await readRequestBody(req);
-      const log = updateTrafficLog(id, payload);
+      const log = await updateTrafficLog(id, payload);
       return sendJson(res, 200, { ok: true, log });
     }
     if (method === 'POST' && pathname === '/api/traffic/fetch') {
@@ -445,17 +492,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (method === 'GET' && pathname === '/api/users') {
-      return sendJson(res, 200, { ok: true, users: getAllUsers() });
+      return sendJson(res, 200, { ok: true, users: await getAllUsers() });
     }
     if (method === 'POST' && pathname === '/api/users') {
       const payload = await readRequestBody(req);
-      const user = createUser(payload);
+      const user = await createUser(payload);
       return sendJson(res, 201, { ok: true, user });
     }
     if (method === 'PUT' && pathname.startsWith('/api/users/')) {
       const id = decodeURIComponent(pathname.split('/').pop());
       const payload = await readRequestBody(req);
-      const user = updateUserPassword(id, payload.password);
+      const user = await updateUserPassword(id, payload.password);
       return sendJson(res, 200, { ok: true, user });
     }
   } catch (error) {
