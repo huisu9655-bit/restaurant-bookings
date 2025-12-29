@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { PORT, MAX_BODY_BYTES } = require('./config');
+const { PORT, MAX_BODY_BYTES, ENABLE_TRAFFIC_AUTO_REFRESH } = require('./config');
 const {
   getAllStores,
   createStore,
@@ -532,31 +532,82 @@ const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8'
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.map': 'application/json; charset=utf-8'
 };
 
 function tryServeStatic(req, res) {
   const rawPath = req.url.split('?')[0];
-  const relativePath = rawPath === '/' ? 'index.html' : rawPath.replace(/^\/+/, '');
-  const normalizedPath = path.normalize(relativePath);
-  const filePath = path.join(__dirname, normalizedPath);
-  const relativeToRoot = path.relative(__dirname, filePath);
-  if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
-    sendJson(res, 403, { error: 'Forbidden' });
+  const distRoot = path.join(__dirname, 'web', 'dist');
+  const distIndex = path.join(distRoot, 'index.html');
+
+  const serveFromRoot = (rootDir, requestPath) => {
+    const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
+    const normalizedPath = path.normalize(relativePath);
+    const filePath = path.join(rootDir, normalizedPath);
+    const relativeToRoot = path.relative(rootDir, filePath);
+    if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
+      sendJson(res, 403, { error: 'Forbidden' });
+      return true;
+    }
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      return false;
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const content = fs.readFileSync(filePath);
+    res.writeHead(200, { 'Content-Type': contentType, ...CORS_HEADERS });
+    res.end(content);
     return true;
+  };
+
+  const serveFile = filePath => {
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      return false;
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const content = fs.readFileSync(filePath);
+    res.writeHead(200, { 'Content-Type': contentType, ...CORS_HEADERS });
+    res.end(content);
+    return true;
+  };
+
+  if (rawPath === '/legacy' || rawPath.startsWith('/legacy/')) {
+    const legacyPath = rawPath === '/legacy' ? '/' : rawPath.slice('/legacy'.length) || '/';
+    return serveFromRoot(__dirname, legacyPath);
   }
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    return false;
+
+  if (fs.existsSync(distIndex)) {
+    if (serveFromRoot(distRoot, rawPath)) {
+      return true;
+    }
+    const pathname = rawPath || '/';
+    const hasExt = path.extname(pathname) !== '';
+    if (!hasExt) {
+      return serveFile(distIndex);
+    }
   }
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-  const content = fs.readFileSync(filePath);
-  res.writeHead(200, { 'Content-Type': contentType, ...CORS_HEADERS });
-  res.end(content);
-  return true;
+
+  return serveFromRoot(__dirname, rawPath);
 }
 
 server.listen(PORT, () => {
   console.log(`[server] listening on http://localhost:${PORT}`);
-  scheduleDailyRefresh();
+  if (ENABLE_TRAFFIC_AUTO_REFRESH) {
+    console.log('[cron] traffic auto refresh enabled');
+    scheduleDailyRefresh();
+  } else {
+    console.log('[cron] traffic auto refresh disabled');
+  }
 });

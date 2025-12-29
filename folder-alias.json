@@ -1,0 +1,8 @@
+{
+    "web/src/pages/Users": {
+        "description": "用户管理"
+    },
+    "web/src/pages/Stores": {
+        "description": "店铺管理"
+    }
+}

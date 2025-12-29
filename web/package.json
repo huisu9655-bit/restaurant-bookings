@@ -1,0 +1,18 @@
+{
+  "name": "restaurant-bookings-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "max dev",
+    "build": "max build"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.6.1",
+    "@ant-design/pro-components": "^2.8.10",
+    "@umijs/max": "^4.4.6",
+    "antd": "^5.22.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

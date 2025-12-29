@@ -88,6 +88,7 @@ const config = {
   DATABASE_URL: pickString('DATABASE_URL', ''),
   PG_SSL: pickBoolean('PG_SSL', false),
   PG_POOL_MAX: pickNumber('PG_POOL_MAX', 10),
+  ENABLE_TRAFFIC_AUTO_REFRESH: pickBoolean('ENABLE_TRAFFIC_AUTO_REFRESH', false),
   MAX_BODY_BYTES: pickNumber('MAX_BODY_BYTES', 30 * 1024 * 1024)
 };
 

@@ -1,8 +1,10 @@
 # 餐厅网红预约与流量登记系统
 
-这是一个帮助多门店协调网红档案、预约排期与流量结果的轻量级后台。系统提供「投放总览 / 网红管理 / 预约与流量 / 用户管理 / 店铺管理」五个菜单，支持账号登录、蓝白风格 UI 与 TikTok 指标自动抓取。
+这是一个帮助多门店协调网红档案、预约排期与流量结果的轻量级后台。系统提供「投放总览 / KOC 管理 / 预约与流量 / 用户管理 / 门店管理」等菜单，支持账号登录与 TikTok 指标自动抓取。
 
-- 前端 `index.html`：原生 JS 后台，包含登录页、蓝白主题、搜索/筛选、预约弹窗、流量登记弹窗。
+- 前端（两套）：
+  - `web/`：React + Umi + Ant Design Pro（ProLayout/ProTable/ProForm）后台（推荐）。
+  - `index.html`：原生 JS 的旧版后台（保留用于兼容/对照）。
 - 后端 `server.js`：原生 Node.js HTTP 服务，托管静态资源并暴露 `/api/login`、`/api/logout`、`/api/stores`、`/api/influencers`、`/api/bookings`、`/api/traffic`、`/api/traffic/fetch`、`/api/users`、`/api/overview`。
 - 配置 `config.js`：读取 `.env` 或 `app.config.json` 中的 `PORT`，并支持可选 PostgreSQL 连接配置（不要把生产机密提交到仓库）。
 - 数据库：默认使用 `data/app.db`（SQLite）；也可通过配置切换到 PostgreSQL。首次启动若发现数据库为空，会尝试从 `data/bookings.json`（若存在）导入历史数据并自动建表。
@@ -25,6 +27,7 @@
 ├─ server.js               # HTTP 服务与 REST API
 ├─ config.js               # 端口配置
 ├─ chat.html               # 旧聊天页占位，只提示返回后台
+├─ web/                    # React + Umi + Ant Design Pro 前端
 ├─ package.json
 └─ README.md
 ```
@@ -35,11 +38,29 @@
    npm install
    ```
 2. （可选）在 `.env` 或 `app.config.json` 中写入 `PORT`。
-3. 启动服务
+3. 构建前端（仅在使用 `web/` 时需要）
+   ```bash
+   npm run web:install
+   npm run web:build
+   ```
+4. 启动服务
    ```bash
    npm start
    ```
-   浏览器访问 [http://localhost:8787](http://localhost:8787) 即可看到登录页（默认账号 `admin / admin123`）。登录后即可使用后台。
+   浏览器访问 [http://localhost:8787](http://localhost:8787) 即可看到登录页（默认账号 `admin / admin123`）。
+
+> 静态托管规则：如果存在 `web/dist/index.html`，服务会优先托管 Ant Design Pro 前端；否则会退回托管旧版 `index.html`。旧版界面固定可通过 `/legacy/` 访问（例如 `http://localhost:8787/legacy/`）。
+
+## 前端开发（React + Umi）
+1. 先启动后端 API
+   ```bash
+   npm start
+   ```
+2. 另开一个终端启动前端开发服务（带 `/api` 代理）
+   ```bash
+   npm run web:dev
+   ```
+3. 访问 [http://localhost:8000](http://localhost:8000)
 
 ## PostgreSQL（可选）
 默认仍使用 SQLite。如需切换到 PostgreSQL，在 `.env` 或 `app.config.json` 中配置：
@@ -103,7 +124,7 @@ PG_POOL_MAX=10
 - `POST /api/traffic`：`{ bookingId, postDate, videoLink, views, likes, comments, shares, note }`。
 - `PUT /api/traffic/:id`：更新已有流量记录（字段同上）。
 - `POST /api/traffic/fetch`：`{ videoLink }`，尝试抓取 TikTok 页面的 `playCount/diggCount/...`。
-- **自动刷新**：服务启动后会在每天 08:00（本地时区）自动尝试抓取最近 100 条有视频链接的流量记录，更新观看/点赞/评论/收藏等指标；抓取失败会跳过并记录日志。
+- **自动刷新（可选）**：默认关闭。如需开启，在 `.env` 或 `app.config.json` 设置 `ENABLE_TRAFFIC_AUTO_REFRESH=true`，服务启动后会在每天 08:00（本地时区）自动尝试抓取最近 100 条有视频链接的流量记录，更新观看/点赞/评论/收藏等指标；抓取失败会跳过并记录日志。
 
 ### 总览
 - `GET /api/overview`：返回 `{ ok, data }`，包含预约汇总、累计曝光、门店/达人数量、最新流量记录。
