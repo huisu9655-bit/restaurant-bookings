@@ -13,3 +13,6 @@ data/bookings.json
 
 # 本地运行日志
 .server.log
+
+# 本地私有别名（不要提交）
+private-folder-alias.json
