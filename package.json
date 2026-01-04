@@ -15,7 +15,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "better-sqlite3": "^9.4.1",
     "pg": "^8.14.1"
   }
 }

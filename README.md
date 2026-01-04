@@ -6,8 +6,8 @@
   - `web/`：React + Umi + Ant Design Pro（ProLayout/ProTable/ProForm）后台（推荐）。
   - `index.html`：原生 JS 的旧版后台（保留用于兼容/对照）。
 - 后端 `server.js`：原生 Node.js HTTP 服务，托管静态资源并暴露 `/api/login`、`/api/logout`、`/api/stores`、`/api/influencers`、`/api/bookings`、`/api/traffic`、`/api/traffic/fetch`、`/api/users`、`/api/overview`。
-- 配置 `config.js`：读取 `.env` 或 `app.config.json` 中的 `PORT`，并支持可选 PostgreSQL 连接配置（不要把生产机密提交到仓库）。
-- 数据库：默认使用 `data/app.db`（SQLite）；也可通过配置切换到 PostgreSQL。首次启动若发现数据库为空，会尝试从 `data/bookings.json`（若存在）导入历史数据并自动建表。
+- 配置 `config.js`：读取 `.env` 或 `app.config.json` 中的 `PORT`、PostgreSQL 连接等配置（不要把生产机密提交到仓库）。
+- 数据库：使用 PostgreSQL。首次启动若发现表为空，会尝试从 `data/bookings.json`（若存在）导入历史数据并自动建表。
 
 ## 功能亮点
 - **投放总览**：展示预约数量、门店/达人档案、累计曝光，并列出最近的流量登记。
@@ -18,11 +18,9 @@
 
 ## 目录结构
 ```
-├─ data/app.db             # SQLite 数据库文件（首次运行自动创建）
 ├─ data/bookings.json      # 可选：旧版 JSON 备份，首次运行时会尝试导入
 ├─ index.html              # 蓝白主题后台界面（含登录/菜单/弹窗）
-├─ influencerStore.js      # 数据层门面：按配置选择 SQLite / PostgreSQL
-├─ sqliteStore.js          # SQLite 数据读写与聚合工具
+├─ influencerStore.js      # 数据层门面：封装 PostgreSQL 数据读写与聚合
 ├─ postgresStore.js        # PostgreSQL 数据读写与聚合工具
 ├─ server.js               # HTTP 服务与 REST API
 ├─ config.js               # 端口配置
@@ -62,8 +60,8 @@
    ```
 3. 访问 [http://localhost:8000](http://localhost:8000)
 
-## PostgreSQL（可选）
-默认仍使用 SQLite。如需切换到 PostgreSQL，在 `.env` 或 `app.config.json` 中配置：
+## PostgreSQL（必需）
+在 `.env` 或 `app.config.json` 中配置：
 ```bash
 DB_DRIVER=postgres
 DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME
@@ -74,11 +72,6 @@ PG_POOL_MAX=10
 ```
 说明：
 - 首次连接 PostgreSQL 会自动建表；若表为空，会尝试从 `data/bookings.json` 导入旧数据，并创建默认账号 `admin / admin123`。
-- 如需把当前 SQLite 数据迁移到 PostgreSQL，可先导出 `data/bookings.json`：
-  ```bash
-  node tools/export_sqlite_to_bookings_json.js
-  ```
-  然后再配置 `DB_DRIVER=postgres` 并启动服务，让 PG 自动导入。
 - `DATABASE_URL` 属于敏感信息，建议仅放在本机 `.env`，不要提交到仓库。
 
 ## API 说明
@@ -137,7 +130,7 @@ PG_POOL_MAX=10
 > **提示**：预算字段以“万 VND”为单位，流量指标填入真实数值，前端会自动格式化展示。
 
 ## 数据库存储
-- SQLite 文件位于 `data/app.db`，使用 `better-sqlite3` 同步读写；也可切换为 PostgreSQL（`pg`）。
+- 使用 PostgreSQL（`pg`）读写。
 - 表结构包括：
   - `stores`：门店信息（名称、地址、图片）。
   - `influencers`：达人档案（昵称、账号、照片、联系方式、备注）。

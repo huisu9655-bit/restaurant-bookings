@@ -84,7 +84,7 @@ function pickBoolean(key, fallback = false) {
 
 const config = {
   PORT: pickNumber('PORT', DEFAULT_PORT),
-  DB_DRIVER: pickString('DB_DRIVER', 'sqlite'),
+  DB_DRIVER: pickString('DB_DRIVER', 'postgres'),
   DATABASE_URL: pickString('DATABASE_URL', ''),
   PG_SSL: pickBoolean('PG_SSL', false),
   PG_POOL_MAX: pickNumber('PG_POOL_MAX', 10),
