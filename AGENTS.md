@@ -8,6 +8,7 @@
 - 前端：`index.html`，蓝白主题后台（包含登录页 / 投放总览 / 网红管理 / 预约与流量 / 用户管理 / 店铺管理），通过 `fetch` 调用 REST API。
 - 后端：`server.js`，原生 Node.js HTTP 服务，提供 `login/logout` 与 `stores/influencers/bookings/traffic/users/overview` 等接口，并支持 TikTok 抓取。
 - 数据：`influencerStore.js` 作为数据层门面，当前仅使用 PostgreSQL（`pg`，实现见 `postgresStore.js`）。首次启动若发现表为空，会尝试从 `data/bookings.json` 导入旧数据并自动建表。
+- 静态资源：门店/达人上传的图片会落盘到 `data/uploads/`，通过 `/uploads/...` 访问（数据库仅存路径）。
 - 配置：`config.js` 读取 `.env` 或 `app.config.json`（`PORT`、`DATABASE_URL`、`PG_SSL`、`PG_POOL_MAX` 等），**不要**把生产机密写入仓库。
 
 ## 本地开发

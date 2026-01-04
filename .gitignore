@@ -10,6 +10,8 @@ app.config.json
 data/app.db
 data/app.db-*
 data/bookings.json
+data/uploads/*
+!data/uploads/.gitkeep
 
 # 本地运行日志
 .server.log

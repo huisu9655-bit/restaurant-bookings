@@ -6,10 +6,20 @@ const config = require('./config');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const LEGACY_JSON = path.join(DATA_DIR, 'bookings.json');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+const UPLOADS_URL_PREFIX = '/uploads/';
 const DEFAULT_STORES = [
   { id: 'store-mlzg', name: '麻辣掌柜', address: '河内老城区 · 网红街 18 号', imageData: '' },
   { id: 'store-hnkr', name: '河内烤肉店', address: '河内西湖 · 星光商场 3 层', imageData: '' }
 ];
+
+const IMAGE_MIME_TO_EXT = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif'
+};
 
 function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -22,6 +32,74 @@ function parseNumber(value) {
 
 function generateId(prefix) {
   return `${prefix}-${crypto.randomBytes(3).toString('hex')}`;
+}
+
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+function resolveUploadFilePath(urlPath) {
+  const raw = normalizeString(urlPath);
+  if (!raw.startsWith(UPLOADS_URL_PREFIX)) return null;
+  const relative = raw.slice(UPLOADS_URL_PREFIX.length);
+  const normalized = path.normalize(relative);
+  if (!normalized || normalized.startsWith('..') || path.isAbsolute(normalized)) return null;
+  return path.join(UPLOADS_DIR, normalized);
+}
+
+function safeDeleteUploadByUrl(urlPath) {
+  const filePath = resolveUploadFilePath(urlPath);
+  if (!filePath) return;
+  try {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      fs.unlinkSync(filePath);
+    }
+  } catch {}
+}
+
+function parseImageDataUrl(dataUrl) {
+  const raw = normalizeString(dataUrl);
+  const match = raw.match(/^data:([^;,]+);base64,(.+)$/i);
+  if (!match) return null;
+  const mime = String(match[1] || '').toLowerCase();
+  const base64 = String(match[2] || '');
+  const ext = IMAGE_MIME_TO_EXT[mime];
+  if (!ext) {
+    throw new Error('仅支持 PNG/JPG/WEBP/GIF 图片格式');
+  }
+  let buffer;
+  try {
+    buffer = Buffer.from(base64, 'base64');
+  } catch {
+    throw new Error('图片内容解析失败');
+  }
+  if (!buffer.length) {
+    throw new Error('图片内容为空');
+  }
+  return { ext, buffer };
+}
+
+function persistImageValue(value, { folder, baseName }) {
+  const raw = normalizeString(value);
+  if (!raw) return '';
+  if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith(UPLOADS_URL_PREFIX)) {
+    return raw;
+  }
+  const parsed = parseImageDataUrl(raw);
+  if (!parsed) {
+    return raw;
+  }
+  const dir = path.join(UPLOADS_DIR, folder);
+  ensureDir(dir);
+  const stamp = Date.now();
+  const rand = crypto.randomBytes(3).toString('hex');
+  const safeBase = String(baseName || folder).replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 64) || folder;
+  const fileName = `${safeBase}-${stamp}-${rand}.${parsed.ext}`;
+  const filePath = path.join(dir, fileName);
+  fs.writeFileSync(filePath, parsed.buffer);
+  return `${UPLOADS_URL_PREFIX}${folder}/${fileName}`;
 }
 
 function hashPassword(raw) {
@@ -138,11 +216,38 @@ async function ensureInit() {
       throw new Error('未配置 DATABASE_URL，无法启用 PostgreSQL');
     }
     await pool.query('SELECT 1');
+    ensureDir(UPLOADS_DIR);
     await createTables();
     await migrateSchema();
     await seedInitialData();
+    await migrateImagesToUploads();
   })();
   return initPromise;
+}
+
+async function migrateImagesToUploads() {
+  ensureDir(path.join(UPLOADS_DIR, 'stores'));
+  ensureDir(path.join(UPLOADS_DIR, 'influencers'));
+
+  const { rows: storeRows } = await pool.query('SELECT "id","imageData" FROM stores WHERE "imageData" LIKE $1', ['data:%']);
+  for (const row of storeRows) {
+    const current = normalizeString(row.imageData);
+    if (!current) continue;
+    const migrated = persistImageValue(current, { folder: 'stores', baseName: row.id });
+    if (migrated && migrated !== current) {
+      await pool.query('UPDATE stores SET "imageData"=$1 WHERE "id"=$2', [migrated, row.id]);
+    }
+  }
+
+  const { rows: infRows } = await pool.query('SELECT "id","avatarData" FROM influencers WHERE "avatarData" LIKE $1', ['data:%']);
+  for (const row of infRows) {
+    const current = normalizeString(row.avatarData);
+    if (!current) continue;
+    const migrated = persistImageValue(current, { folder: 'influencers', baseName: row.id });
+    if (migrated && migrated !== current) {
+      await pool.query('UPDATE influencers SET "avatarData"=$1 WHERE "id"=$2', [migrated, row.id]);
+    }
+  }
 }
 
 async function createTables() {
@@ -324,13 +429,14 @@ async function seedFromLegacy() {
     for (const store of stores) {
       const id = normalizeString(store.id) || generateId('store');
       storeIds.set(id, id);
+      const imageData = persistImageValue(store.imageData || '', { folder: 'stores', baseName: id });
       await client.query(
         'INSERT INTO stores ("id","name","address","imageData","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6)',
         [
           id,
           normalizeString(store.name) || '未命名门店',
           normalizeString(store.address),
-          store.imageData || '',
+          imageData,
           store.createdAt || now,
           store.updatedAt || now
         ]
@@ -341,13 +447,14 @@ async function seedFromLegacy() {
     for (const inf of influencers) {
       const id = normalizeString(inf.id) || generateId('inf');
       influencerIds.set(id, id);
+      const avatarData = persistImageValue(inf.avatarData || '', { folder: 'influencers', baseName: id });
       await client.query(
         'INSERT INTO influencers ("id","displayName","handle","avatarData","contactMethod","contactInfo","notes","profileLink","auditReportName","auditReportText","commentDetailName","commentDetailText","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)',
         [
           id,
           normalizeString(inf.displayName) || '未命名达人',
           normalizeString(inf.handle),
-          inf.avatarData || '',
+          avatarData,
           normalizeString(inf.contactMethod),
           normalizeString(inf.contactInfo),
           normalizeString(inf.notes),
@@ -455,7 +562,7 @@ async function createStore(payload = {}) {
     id,
     name: normalizeString(payload.name) || '未命名门店',
     address: normalizeString(payload.address),
-    imageData: normalizeString(payload.imageData),
+    imageData: persistImageValue(payload.imageData, { folder: 'stores', baseName: id }),
     createdAt: now,
     updatedAt: now
   };
@@ -475,10 +582,14 @@ async function updateStore(id, payload = {}) {
     id: existing.id,
     name: normalizeString(payload.name) || existing.name,
     address: payload.address !== undefined ? normalizeString(payload.address) : existing.address,
-    imageData:
-      payload.imageData !== undefined && payload.imageData !== '' ? normalizeString(payload.imageData) : existing.imageData,
+    imageData: payload.imageData !== undefined ? normalizeString(payload.imageData) : existing.imageData,
     updatedAt: new Date().toISOString()
   };
+  const persistedImageData = persistImageValue(updated.imageData, { folder: 'stores', baseName: updated.id });
+  if (persistedImageData !== normalizeString(existing.imageData || '')) {
+    safeDeleteUploadByUrl(existing.imageData);
+  }
+  updated.imageData = persistedImageData;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -509,11 +620,13 @@ async function updateStore(id, payload = {}) {
 
 async function deleteStore(id) {
   await ensureInit();
-  const { rows: existingRows } = await pool.query('SELECT "id" FROM stores WHERE "id" = $1', [id]);
-  if (!existingRows[0]) throw new Error('未找到门店');
+  const { rows: existingRows } = await pool.query('SELECT "id","imageData" FROM stores WHERE "id" = $1', [id]);
+  const existing = existingRows[0];
+  if (!existing) throw new Error('未找到门店');
   const { rows: countRows } = await pool.query('SELECT COUNT(*)::int as count FROM bookings WHERE "storeId" = $1', [id]);
   if (Number(countRows[0]?.count || 0) > 0) throw new Error('存在关联预约，无法删除门店');
   await pool.query('DELETE FROM stores WHERE "id" = $1', [id]);
+  safeDeleteUploadByUrl(existing.imageData);
   return true;
 }
 
@@ -537,7 +650,7 @@ async function createInfluencer(payload = {}) {
     id,
     displayName: normalizeString(payload.displayName) || '未命名达人',
     handle: normalizeString(payload.handle),
-    avatarData: normalizeString(payload.avatarData),
+    avatarData: persistImageValue(payload.avatarData, { folder: 'influencers', baseName: id }),
     contactMethod: normalizeString(payload.contactMethod),
     contactInfo: normalizeString(payload.contactInfo),
     notes: normalizeString(payload.notes),
@@ -596,6 +709,11 @@ async function updateInfluencer(id, payload = {}) {
       payload.commentDetailText !== undefined ? normalizeString(payload.commentDetailText) : existing.commentDetailText || '',
     updatedAt: new Date().toISOString()
   };
+  const persistedAvatarData = persistImageValue(influencer.avatarData, { folder: 'influencers', baseName: influencer.id });
+  if (persistedAvatarData !== normalizeString(existing.avatarData || '')) {
+    safeDeleteUploadByUrl(existing.avatarData);
+  }
+  influencer.avatarData = persistedAvatarData;
   await pool.query(
     `UPDATE influencers
      SET "displayName"=$1, "handle"=$2, "avatarData"=$3,
@@ -623,8 +741,9 @@ async function updateInfluencer(id, payload = {}) {
 
 async function deleteInfluencer(id) {
   await ensureInit();
-  const { rows: existingRows } = await pool.query('SELECT "id" FROM influencers WHERE "id" = $1', [id]);
-  if (!existingRows[0]) throw new Error('未找到达人');
+  const { rows: existingRows } = await pool.query('SELECT "id","avatarData" FROM influencers WHERE "id" = $1', [id]);
+  const existing = existingRows[0];
+  if (!existing) throw new Error('未找到达人');
   const { rows: bookingRows } = await pool.query('SELECT COUNT(*)::int as count FROM bookings WHERE "influencerId" = $1', [
     id
   ]);
@@ -636,6 +755,7 @@ async function deleteInfluencer(id) {
   }
   await pool.query('DELETE FROM influencer_files WHERE "influencerId" = $1', [id]);
   await pool.query('DELETE FROM influencers WHERE "id" = $1', [id]);
+  safeDeleteUploadByUrl(existing.avatarData);
   return true;
 }
 

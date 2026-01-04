@@ -550,6 +550,7 @@ function tryServeStatic(req, res) {
   const rawPath = req.url.split('?')[0];
   const distRoot = path.join(__dirname, 'web', 'dist');
   const distIndex = path.join(distRoot, 'index.html');
+  const uploadsRoot = path.join(__dirname, 'data', 'uploads');
 
   const serveFromRoot = (rootDir, requestPath) => {
     const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
@@ -582,6 +583,15 @@ function tryServeStatic(req, res) {
     res.end(content);
     return true;
   };
+
+  if (rawPath === '/uploads' || rawPath.startsWith('/uploads/')) {
+    const uploadsPath = rawPath === '/uploads' ? '/' : rawPath.slice('/uploads'.length) || '/';
+    if (serveFromRoot(uploadsRoot, uploadsPath)) {
+      return true;
+    }
+    sendJson(res, 404, { error: 'Not Found' });
+    return true;
+  }
 
   if (rawPath === '/legacy' || rawPath.startsWith('/legacy/')) {
     const legacyPath = rawPath === '/legacy' ? '/' : rawPath.slice('/legacy'.length) || '/';
