@@ -45,6 +45,22 @@
    
 > 静态托管规则：服务默认托管 `web/dist`（新前端）。如需部署，请先执行 `npm run web:install` 与 `npm run web:build`。
 
+## Docker 部署
+1. 构建镜像（会自动安装 `web/` 依赖并构建新前端）
+   ```bash
+   docker build -t restaurant-bookings:latest .
+   ```
+2. 运行容器
+   ```bash
+   docker run -p 8787:8787 \
+     -e DATABASE_URL="postgres://USER:PASSWORD@HOST:5432/DBNAME" \
+     -e DB_DRIVER=postgres \
+     restaurant-bookings:latest
+   ```
+3. （推荐）持久化图片上传目录：把容器内 `/app/data/uploads` 挂载到宿主机或卷。
+   - 示例：`-v /path/on/host/uploads:/app/data/uploads`
+4. （可选）如需首次启动从旧数据导入：把 `bookings.json` 挂载到 `/app/data/bookings.json`。
+
 ## 前端开发（React + Umi）
 1. 先启动后端 API
    ```bash

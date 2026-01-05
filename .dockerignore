@@ -1,0 +1,16 @@
+node_modules
+web/node_modules
+
+.git
+.DS_Store
+
+.env
+app.config.json
+.server.log
+
+data
+!data/uploads
+data/uploads/*
+!data/uploads/.gitkeep
+
+web/dist
