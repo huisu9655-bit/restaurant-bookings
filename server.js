@@ -519,7 +519,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 500, { error: error.message || '服务器内部错误' });
   }
 
-  if (method === 'GET') {
+  if (method === 'GET' || method === 'HEAD') {
     if (tryServeStatic(req, res)) {
       return;
     }
@@ -547,6 +547,8 @@ const MIME_TYPES = {
 };
 
 function tryServeStatic(req, res) {
+  const requestMethod = (req.method || 'GET').toUpperCase();
+  const headOnly = requestMethod === 'HEAD';
   const rawPath = req.url.split('?')[0];
   const distRoot = path.join(__dirname, 'web', 'dist');
   const distIndex = path.join(distRoot, 'index.html');
@@ -567,8 +569,8 @@ function tryServeStatic(req, res) {
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const content = fs.readFileSync(filePath);
-    res.writeHead(200, { 'Content-Type': contentType, ...CORS_HEADERS });
-    res.end(content);
+    res.writeHead(200, { 'Content-Type': contentType, 'Content-Length': Buffer.byteLength(content), ...CORS_HEADERS });
+    res.end(headOnly ? undefined : content);
     return true;
   };
 
@@ -579,37 +581,47 @@ function tryServeStatic(req, res) {
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const content = fs.readFileSync(filePath);
-    res.writeHead(200, { 'Content-Type': contentType, ...CORS_HEADERS });
-    res.end(content);
+    res.writeHead(200, { 'Content-Type': contentType, 'Content-Length': Buffer.byteLength(content), ...CORS_HEADERS });
+    res.end(headOnly ? undefined : content);
     return true;
   };
 
+  if (rawPath === '/legacy' || rawPath.startsWith('/legacy/') || rawPath === '/chat.html') {
+    res.writeHead(301, { Location: '/', ...CORS_HEADERS });
+    res.end();
+    return true;
+  }
+
   if (rawPath === '/uploads' || rawPath.startsWith('/uploads/')) {
     const uploadsPath = rawPath === '/uploads' ? '/' : rawPath.slice('/uploads'.length) || '/';
-    if (serveFromRoot(uploadsRoot, uploadsPath)) {
-      return true;
-    }
+    if (serveFromRoot(uploadsRoot, uploadsPath)) return true;
     sendJson(res, 404, { error: 'Not Found' });
     return true;
   }
 
-  if (rawPath === '/legacy' || rawPath.startsWith('/legacy/')) {
-    const legacyPath = rawPath === '/legacy' ? '/' : rawPath.slice('/legacy'.length) || '/';
-    return serveFromRoot(__dirname, legacyPath);
+  if (!fs.existsSync(distIndex)) {
+    const html = [
+        '<!doctype html>',
+        '<html><head><meta charset="utf-8"><title>前端未构建</title></head>',
+        '<body style="font-family:system-ui;padding:24px">',
+        '<h2>新前端未构建或不存在</h2>',
+        '<p>请在项目根目录执行：</p>',
+        '<pre>npm run web:install\nnpm run web:build\nnpm start</pre>',
+        '</body></html>'
+      ].join('');
+    res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': Buffer.byteLength(html), ...CORS_HEADERS });
+    res.end(headOnly ? undefined : html);
+    return true;
   }
 
-  if (fs.existsSync(distIndex)) {
-    if (serveFromRoot(distRoot, rawPath)) {
-      return true;
-    }
-    const pathname = rawPath || '/';
-    const hasExt = path.extname(pathname) !== '';
-    if (!hasExt) {
-      return serveFile(distIndex);
-    }
-  }
+  if (serveFromRoot(distRoot, rawPath)) return true;
 
-  return serveFromRoot(__dirname, rawPath);
+  const pathname = rawPath || '/';
+  const hasExt = path.extname(pathname) !== '';
+  if (!hasExt) return serveFile(distIndex);
+
+  sendJson(res, 404, { error: 'Not Found' });
+  return true;
 }
 
 server.listen(PORT, () => {

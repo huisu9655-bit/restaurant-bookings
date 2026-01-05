@@ -2,9 +2,7 @@
 
 这是一个帮助多门店协调网红档案、预约排期与流量结果的轻量级后台。系统提供「投放总览 / KOC 管理 / 预约与流量 / 用户管理 / 门店管理」等菜单，支持账号登录与 TikTok 指标自动抓取。
 
-- 前端（两套）：
-  - `web/`：React + Umi + Ant Design Pro（ProLayout/ProTable/ProForm）后台（推荐）。
-  - `index.html`：原生 JS 的旧版后台（保留用于兼容/对照）。
+- 前端：`web/`（React + Umi + Ant Design Pro：ProLayout/ProTable/ProForm）。
 - 后端 `server.js`：原生 Node.js HTTP 服务，托管静态资源并暴露 `/api/login`、`/api/logout`、`/api/stores`、`/api/influencers`、`/api/bookings`、`/api/traffic`、`/api/traffic/fetch`、`/api/users`、`/api/overview`。
 - 配置 `config.js`：读取 `.env` 或 `app.config.json` 中的 `PORT`、PostgreSQL 连接等配置（不要把生产机密提交到仓库）。
 - 数据库：使用 PostgreSQL。首次启动若发现表为空，会尝试从 `data/bookings.json`（若存在）导入历史数据并自动建表。
@@ -19,12 +17,10 @@
 ## 目录结构
 ```
 ├─ data/bookings.json      # 可选：旧版 JSON 备份，首次运行时会尝试导入
-├─ index.html              # 蓝白主题后台界面（含登录/菜单/弹窗）
 ├─ influencerStore.js      # 数据层门面：封装 PostgreSQL 数据读写与聚合
 ├─ postgresStore.js        # PostgreSQL 数据读写与聚合工具
 ├─ server.js               # HTTP 服务与 REST API
 ├─ config.js               # 端口配置
-├─ chat.html               # 旧聊天页占位，只提示返回后台
 ├─ web/                    # React + Umi + Ant Design Pro 前端
 ├─ package.json
 └─ README.md
@@ -46,8 +42,8 @@
    npm start
    ```
    浏览器访问 [http://localhost:8787](http://localhost:8787) 即可看到登录页（默认账号 `admin / admin123`）。
-
-> 静态托管规则：如果存在 `web/dist/index.html`，服务会优先托管 Ant Design Pro 前端；否则会退回托管旧版 `index.html`。旧版界面固定可通过 `/legacy/` 访问（例如 `http://localhost:8787/legacy/`）。
+   
+> 静态托管规则：服务默认托管 `web/dist`（新前端）。如需部署，请先执行 `npm run web:install` 与 `npm run web:build`。
 
 ## 前端开发（React + Umi）
 1. 先启动后端 API
@@ -141,6 +137,5 @@ PG_POOL_MAX=10
 - 若 `data/bookings.json` 存在，首次启动且数据库为空时会自动导入其内容；之后所有数据均直接写入当前数据库。
 
 ## 其它说明
-- 旧版翻译/聊天室功能已完全移除；`chat.html` 仅提示用户返回后台主页。
 - `app.config.json` 可用于覆盖端口号；生产部署前建议将 `data/bookings.json` 替换为数据库或其它持久化存储，并在 API 层增加更严格的鉴权与操作日志。
 - 自动抓取依赖 TikTok Web 页面的公开脚本，如遇网络或地区限制将返回友好提示，可改为手动填数。

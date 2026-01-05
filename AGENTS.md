@@ -5,7 +5,7 @@
 - 遇到权限或网络受限时，先说明受限情况并给出可行替代方案。
 
 ## 项目结构
-- 前端：`index.html`，蓝白主题后台（包含登录页 / 投放总览 / 网红管理 / 预约与流量 / 用户管理 / 店铺管理），通过 `fetch` 调用 REST API。
+- 前端：`web/`（React + Umi + Ant Design Pro）后台，通过 `request` 调用 REST API。
 - 后端：`server.js`，原生 Node.js HTTP 服务，提供 `login/logout` 与 `stores/influencers/bookings/traffic/users/overview` 等接口，并支持 TikTok 抓取。
 - 数据：`influencerStore.js` 作为数据层门面，当前仅使用 PostgreSQL（`pg`，实现见 `postgresStore.js`）。首次启动若发现表为空，会尝试从 `data/bookings.json` 导入旧数据并自动建表。
 - 静态资源：门店/达人上传的图片会落盘到 `data/uploads/`，通过 `/uploads/...` 访问（数据库仅存路径）。
@@ -21,7 +21,6 @@
 - 所有业务操作需先登录获取 token；前端把 token 存在 `localStorage` 并写入 `Authorization` 头。
 - `/api/stores`、`/api/influencers`、`/api/bookings`、`/api/traffic`、`/api/users`、`/api/overview` 是核心接口；新增字段时先更新 `postgresStore.js` 的建表/迁移逻辑，再同步前端渲染与表单。
 - `POST /api/traffic/fetch` 仅做“尽力而为”的网页抓取，若因网络受限返回错误，前端应提示改为手动输入。
-- `chat.html` 是占位提示，避免旧链接 404，无需再维护历史聊天逻辑。
 
 ## 代码修改准则
 - 继续保持原生 HTML/JS，不引入构建型框架；若拆分静态资源需同步更新 `server.js` 的静态托管逻辑。
